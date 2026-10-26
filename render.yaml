@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: quiz-website
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build && npm --prefix server ci
+    startCommand: npm --prefix server start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TEACHER_PASSWORD
+        sync: false

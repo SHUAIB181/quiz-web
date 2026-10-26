@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "category": "mathmatics",
+    "question": "what is 12+4 =",
+    "options": [
+      "15",
+      "17",
+      "18",
+      "16"
+    ],
+    "answer": "16"
+  },
+  {
+    "id": 2,
+    "category": "mathematics",
+    "question": "what is the root of 16",
+    "options": [
+      "5",
+      "3",
+      "4",
+      "2"
+    ],
+    "answer": "4"
+  }
+]
