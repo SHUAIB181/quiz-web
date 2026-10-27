@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
 const { MongoClient } = require("mongodb");
 
 const app = express();
@@ -12,6 +14,8 @@ app.use(express.json());
 const MONGODB_URI = process.env.MONGODB_URI;
 const TEACHER_PASSWORD = process.env.TEACHER_PASSWORD || "admin123";
 const PORT = process.env.PORT || 5000;
+// Set SHOW_CORRECT_ANSWERS=false to hide the right answers on the result page
+const SHOW_CORRECT_ANSWERS = process.env.SHOW_CORRECT_ANSWERS !== "false";
 
 const TOKEN_LIFETIME_MS = 8 * 60 * 60 * 1000; // teacher stays signed in for 8 hours
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -106,33 +110,61 @@ app.post("/teacher/logout", requireTeacher, (req, res) => {
 });
 
 // ---------- Student routes (public) ----------
+// Students receive the questions WITHOUT the correct answers.
+app.get(
+  "/questions",
+  route(async (req, res) => {
+    const questions = await questionsCol()
+      .find({}, { projection: { _id: 0, answer: 0 } })
+      .sort({ id: 1 })
+      .toArray();
+    res.json(questions);
+  })
+);
+
+// The server marks the quiz. The student only sends the options they chose.
 app.post(
   "/submit",
   route(async (req, res) => {
-    const { name, score } = req.body || {};
+    const { name, answers } = req.body || {};
 
     if (typeof name !== "string" || !name.trim() || name.length > 100) {
       return res.status(400).json({ error: "Invalid name" });
     }
-    if (typeof score !== "number" || !Number.isFinite(score) || score < 0) {
-      return res.status(400).json({ error: "Invalid score" });
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+      return res.status(400).json({ error: "Invalid answers" });
     }
+
+    const questions = await questionsCol().find({}, hidden).sort({ id: 1 }).toArray();
+
+    if (questions.length === 0) {
+      return res.status(400).json({ error: "No questions to mark" });
+    }
+
+    // Every current question is marked. A question left blank counts as wrong.
+    const review = questions.map((q) => {
+      const chosen = typeof answers[q.id] === "string" ? answers[q.id] : null;
+      const item = {
+        id: q.id,
+        question: q.question,
+        yourAnswer: chosen,
+        correct: chosen === q.answer,
+      };
+      if (SHOW_CORRECT_ANSWERS) item.correctAnswer = q.answer;
+      return item;
+    });
+
+    const score = review.filter((item) => item.correct).length;
+    const total = questions.length;
 
     await resultsCol().insertOne({
       name: name.trim(),
       score,
+      total,
       submittedAt: new Date().toISOString(), // stamped by the server
     });
 
-    res.json({ success: true });
-  })
-);
-
-app.get(
-  "/questions",
-  route(async (req, res) => {
-    const questions = await questionsCol().find({}, hidden).sort({ id: 1 }).toArray();
-    res.json(questions);
+    res.json({ score, total, review });
   })
 );
 
@@ -236,6 +268,19 @@ app.delete(
     res.json({ success: true });
   })
 );
+
+// ---------- Serve the website (the folder made by "npm run build") ----------
+const BUILD_DIR = path.join(__dirname, "..", "build");
+const INDEX_FILE = path.join(BUILD_DIR, "index.html");
+
+if (fs.existsSync(INDEX_FILE)) {
+  app.use(express.static(BUILD_DIR));
+  // Any other page address (like /teacher) loads the React app
+  app.use((req, res, next) => {
+    if (req.method !== "GET") return next();
+    res.sendFile(INDEX_FILE);
+  });
+}
 
 // ---------- Start ----------
 client
