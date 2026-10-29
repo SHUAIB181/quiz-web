@@ -211,7 +211,7 @@ function App() {
       <header className="exam-bar">
         <div className="exam-brand">
           <span className="exam-seal" aria-hidden="true" />
-          Online examination
+          Let's Do ThisS
         </div>
         <div className={`timer ${timeLow ? "low" : ""}`} role="timer">
           {timerText}
