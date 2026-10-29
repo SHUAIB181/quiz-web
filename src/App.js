@@ -2,13 +2,24 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./App.css";
 
+const formatTime = (seconds) =>
+  `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
+
 function App() {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
   const [questions, setQuestions] = useState([]);
   const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [quizStarted, setQuizStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(180);
+
+  // The teacher chooses how the quiz is timed:
+  //   "total"        one countdown for the whole quiz
+  //   "perQuestion"  each question has its own countdown
+  const [mode, setMode] = useState("total");
+  const [timeLeft, setTimeLeft] = useState(180); // total mode
+  const [currentIndex, setCurrentIndex] = useState(0); // per-question mode
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(0); // per-question mode
 
   // answers are saved by question id: { 1: "20", 2: "4" }
   const [answers, setAnswers] = useState({});
@@ -23,24 +34,39 @@ function App() {
   const submitted = result !== null;
 
   useEffect(() => {
-    axios
-      .get("/questions")
-      .then((response) => setQuestions(response.data))
+    Promise.all([axios.get("/questions"), axios.get("/quiz-settings")])
+      .then(([questionsResponse, settingsResponse]) => {
+        setQuestions(questionsResponse.data);
+        setMode(settingsResponse.data.mode);
+        setTimeLeft(settingsResponse.data.totalSeconds);
+      })
       .catch(() =>
-        setLoadError("Could not load the questions. Please tell your teacher.")
-      );
+        setLoadError("Could not load the quiz. Please tell your teacher.")
+      )
+      .finally(() => setLoading(false));
   }, []);
 
-  // Count the timer down
+  // Total mode: count the whole quiz down
   useEffect(() => {
-    if (!quizStarted || submitted) return;
+    if (!quizStarted || submitted || mode !== "total") return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizStarted, submitted]);
+  }, [quizStarted, submitted, mode]);
+
+  // Per-question mode: count the current question down (restarts on each question)
+  useEffect(() => {
+    if (!quizStarted || submitted || mode !== "perQuestion") return;
+
+    const timer = setInterval(() => {
+      setQuestionTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [quizStarted, submitted, mode, currentIndex]);
 
   const handleAnswer = (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
@@ -65,17 +91,43 @@ function App() {
     }
   };
 
-  // Always points at the newest submitQuiz, so the auto-submit sees the latest answers
-  const submitRef = useRef(submitQuiz);
-  submitRef.current = submitQuiz;
-
-  // When time runs out, submit automatically
-  useEffect(() => {
-    if (quizStarted && !submitted && timeLeft === 0) {
-      setTimedOut(true);
-      submitRef.current();
+  // Per-question mode: go to the next question, or submit after the last one
+  const goToNext = () => {
+    if (currentIndex >= questions.length - 1) {
+      submitQuiz();
+      return;
     }
-  }, [quizStarted, submitted, timeLeft]);
+    const next = currentIndex + 1;
+    setCurrentIndex(next);
+    setQuestionTimeLeft(questions[next].timeSeconds || 30);
+  };
+
+  // Always point at the newest functions, so a timer sees the latest answers
+  const actionsRef = useRef({});
+  actionsRef.current = { submitQuiz, goToNext };
+
+  // When a countdown reaches zero, move on automatically
+  useEffect(() => {
+    if (!quizStarted || submitted) return;
+
+    if (mode === "total" && timeLeft === 0) {
+      setTimedOut(true);
+      actionsRef.current.submitQuiz();
+    }
+
+    if (mode === "perQuestion" && questionTimeLeft === 0) {
+      if (currentIndex >= questions.length - 1) setTimedOut(true);
+      actionsRef.current.goToNext();
+    }
+  }, [
+    quizStarted,
+    submitted,
+    mode,
+    timeLeft,
+    questionTimeLeft,
+    currentIndex,
+    questions.length,
+  ]);
 
   if (submitted) {
     const { score, total, review } = result;
@@ -139,12 +191,19 @@ function App() {
     );
   }
 
+  const currentQuestion = questions[currentIndex];
+  const isLastQuestion = currentIndex >= questions.length - 1;
+
+  let timerText = `Time Remaining: ${formatTime(timeLeft)}`;
+  if (mode === "perQuestion") {
+    timerText = quizStarted
+      ? `Time for this question: ${formatTime(questionTimeLeft)}`
+      : "Each question has its own time limit";
+  }
+
   return (
     <div className="quiz-container">
-      <h2 className="timer">
-        Time Remaining: {Math.floor(timeLeft / 60)}:
-        {(timeLeft % 60).toString().padStart(2, "0")}
-      </h2>
+      <h2 className="timer">{timerText}</h2>
       <h1 className="quiz-title">Let's do this</h1>
 
       <input
@@ -160,23 +219,33 @@ function App() {
       />
       {nameError && <p className="error-text">{nameError}</p>}
       {loadError && <p className="error-text">{loadError}</p>}
+      {!loading && !loadError && questions.length === 0 && (
+        <p className="error-text">
+          No questions have been added yet. Please check back soon.
+        </p>
+      )}
 
       <button
         className="btn-primary"
-        disabled={questions.length === 0 || loadError !== "" || quizStarted}
+        disabled={
+          loading || questions.length === 0 || loadError !== "" || quizStarted
+        }
         onClick={() => {
           if (name.trim() === "") {
             setNameError("Please enter your name to start the quiz");
             return;
           }
           setNameError("");
+          setCurrentIndex(0);
+          setQuestionTimeLeft(questions[0].timeSeconds || 30);
           setQuizStarted(true);
         }}
       >
         Start Quiz
       </button>
 
-      {quizStarted && (
+      {/* Total time: every question on one page */}
+      {quizStarted && mode === "total" && (
         <>
           {questions.map((q, index) => (
             <div className="question" key={q.id}>
@@ -190,6 +259,7 @@ function App() {
                     type="radio"
                     name={`question-${q.id}`}
                     value={option}
+                    checked={answers[q.id] === option}
                     disabled={submitting || timeLeft === 0}
                     onChange={() => handleAnswer(q.id, option)}
                   />
@@ -208,6 +278,50 @@ function App() {
           >
             {submitting ? "Submitting..." : "Submit Quiz"}
           </button>
+        </>
+      )}
+
+      {/* Time per question: one question at a time, no going back */}
+      {quizStarted && mode === "perQuestion" && currentQuestion && (
+        <>
+          <p className="question-progress">
+            Question {currentIndex + 1} of {questions.length}
+          </p>
+
+          <div className="question" key={currentQuestion.id}>
+            <h3>{currentQuestion.question}</h3>
+
+            {currentQuestion.options.map((option, i) => (
+              <label key={i} className="option">
+                <input
+                  type="radio"
+                  name={`question-${currentQuestion.id}`}
+                  value={option}
+                  checked={answers[currentQuestion.id] === option}
+                  disabled={submitting || questionTimeLeft === 0}
+                  onChange={() => handleAnswer(currentQuestion.id, option)}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+
+          {submitError && <p className="error-text">{submitError}</p>}
+
+          <button
+            className="btn-primary"
+            onClick={goToNext}
+            disabled={submitting}
+          >
+            {isLastQuestion
+              ? submitting
+                ? "Submitting..."
+                : "Submit Quiz"
+              : "Next question"}
+          </button>
+          <p className="review-line">
+            You cannot go back to earlier questions.
+          </p>
         </>
       )}
     </div>

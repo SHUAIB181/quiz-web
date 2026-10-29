@@ -38,6 +38,24 @@ const resultsCol = () => db.collection("results");
 const questionsCol = () => db.collection("questions");
 const hidden = { projection: { _id: 0 } }; // do not send MongoDB's internal id
 
+// ---------- Quiz timer settings ----------
+// mode "total": one countdown for the whole quiz
+// mode "perQuestion": each question has its own countdown
+const DEFAULT_SETTINGS = {
+  mode: "total",
+  totalSeconds: 180,
+  defaultQuestionSeconds: 30,
+};
+
+const validSeconds = (value, min, max) =>
+  Number.isInteger(value) && value >= min && value <= max;
+
+const getSettings = async () => {
+  const stored = await db.collection("settings").findOne({ _id: "timer" });
+  const { _id, ...rest } = stored || {};
+  return { ...DEFAULT_SETTINGS, ...rest };
+};
+
 // Catch errors in async routes so one bad request cannot crash the server
 const route = (handler) => (req, res) =>
   handler(req, res).catch((error) => {
@@ -114,11 +132,28 @@ app.post("/teacher/logout", requireTeacher, (req, res) => {
 app.get(
   "/questions",
   route(async (req, res) => {
+    const settings = await getSettings();
     const questions = await questionsCol()
       .find({}, { projection: { _id: 0, answer: 0 } })
       .sort({ id: 1 })
       .toArray();
-    res.json(questions);
+
+    // A question without its own time uses the default time per question
+    res.json(
+      questions.map((q) => ({
+        ...q,
+        timeSeconds: q.timeSeconds || settings.defaultQuestionSeconds,
+      }))
+    );
+  })
+);
+
+// How the quiz is timed (students need this to run the countdown)
+app.get(
+  "/quiz-settings",
+  route(async (req, res) => {
+    const settings = await getSettings();
+    res.json({ mode: settings.mode, totalSeconds: settings.totalSeconds });
   })
 );
 
@@ -218,11 +253,76 @@ app.get(
   })
 );
 
+app.get(
+  "/teacher/settings",
+  requireTeacher,
+  route(async (req, res) => {
+    res.json(await getSettings());
+  })
+);
+
+app.put(
+  "/teacher/settings",
+  requireTeacher,
+  route(async (req, res) => {
+    const { mode, totalSeconds, defaultQuestionSeconds } = req.body || {};
+
+    if (mode !== "total" && mode !== "perQuestion") {
+      return res.status(400).json({ error: "Invalid mode" });
+    }
+    if (!validSeconds(totalSeconds, 10, 10800)) {
+      return res.status(400).json({ error: "Total time must be 10 to 10800 seconds" });
+    }
+    if (!validSeconds(defaultQuestionSeconds, 5, 3600)) {
+      return res.status(400).json({ error: "Question time must be 5 to 3600 seconds" });
+    }
+
+    await db
+      .collection("settings")
+      .updateOne(
+        { _id: "timer" },
+        { $set: { mode, totalSeconds, defaultQuestionSeconds } },
+        { upsert: true }
+      );
+
+    res.json({ success: true });
+  })
+);
+
+// Change one question's time. Send timeSeconds: null to go back to the default.
+app.patch(
+  "/questions/:id",
+  requireTeacher,
+  route(async (req, res) => {
+    const { timeSeconds } = req.body || {};
+    let update;
+
+    if (timeSeconds === null) {
+      update = { $unset: { timeSeconds: "" } };
+    } else if (validSeconds(timeSeconds, 5, 3600)) {
+      update = { $set: { timeSeconds } };
+    } else {
+      return res.status(400).json({ error: "Time must be 5 to 3600 seconds" });
+    }
+
+    const outcome = await questionsCol().updateOne(
+      { id: Number(req.params.id) },
+      update
+    );
+
+    if (outcome.matchedCount === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    res.json({ success: true });
+  })
+);
+
 app.post(
   "/add-question",
   requireTeacher,
   route(async (req, res) => {
-    const { category, question, options, answer } = req.body || {};
+    const { category, question, options, answer, timeSeconds } = req.body || {};
 
     const validOptions =
       Array.isArray(options) &&
@@ -240,6 +340,10 @@ app.post(
       return res.status(400).json({ error: "Answer must be one of the options" });
     }
 
+    if (timeSeconds !== undefined && timeSeconds !== null && !validSeconds(timeSeconds, 5, 3600)) {
+      return res.status(400).json({ error: "Time must be 5 to 3600 seconds" });
+    }
+
     const last = await questionsCol().find({}).sort({ id: -1 }).limit(1).toArray();
     const nextId = last.length > 0 ? last[0].id + 1 : 1;
 
@@ -249,6 +353,7 @@ app.post(
       question: question.trim(),
       options: cleanOptions,
       answer: cleanAnswer,
+      ...(timeSeconds ? { timeSeconds } : {}),
     });
 
     res.json({ success: true });

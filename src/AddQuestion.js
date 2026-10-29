@@ -8,6 +8,7 @@ function AddQuestion() {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", "", "", ""]);
   const [correct, setCorrect] = useState("");
+  const [timeSeconds, setTimeSeconds] = useState("");
   const [message, setMessage] = useState(null);
 
   const labels = ["A", "B", "C", "D"];
@@ -44,6 +45,7 @@ function AddQuestion() {
         question,
         options,
         answer: options[Number(correct)],
+        ...(timeSeconds ? { timeSeconds: Number(timeSeconds) } : {}),
       });
 
       setMessage({
@@ -54,6 +56,7 @@ function AddQuestion() {
       setQuestion("");
       setOptions(["", "", "", ""]);
       setCorrect("");
+      setTimeSeconds("");
     } catch (error) {
       const status = error.response && error.response.status;
       setMessage({
@@ -61,6 +64,8 @@ function AddQuestion() {
         text:
           status === 401
             ? "Your session expired. Go back and sign in again."
+            : status === 400
+            ? "The question was not accepted. Check every field, and keep the time between 5 and 3600 seconds."
             : "Could not save the question. Check that the server is running.",
       });
     }
@@ -141,6 +146,23 @@ function AddQuestion() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="t-field">
+            <label htmlFor="q-time">Time for this question (seconds, optional)</label>
+            <input
+              id="q-time"
+              className="t-input"
+              type="number"
+              min="5"
+              max="3600"
+              placeholder="Leave empty to use the default time"
+              value={timeSeconds}
+              onChange={(e) => setTimeSeconds(e.target.value)}
+            />
+            <p className="t-section-sub" style={{ margin: "6px 0 0" }}>
+              Only used when the quiz is set to Time per question.
+            </p>
           </div>
 
           <button className="t-btn full" onClick={saveQuestion}>

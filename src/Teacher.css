@@ -347,3 +347,56 @@ a.t-btn {
     padding: 20px;
   }
 }
+/* Add these lines at the very bottom of src/Teacher.css */
+
+.t-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  line-height: 1.5;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.t-mode:hover {
+  border-color: var(--primary);
+}
+
+.t-mode.active {
+  background: #f5f3ff;
+  border-color: var(--primary);
+}
+
+.t-mode input {
+  margin-top: 5px;
+  accent-color: var(--primary);
+}
+
+.t-time-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 0 4px;
+}
+
+.t-input-small {
+  width: 110px;
+  padding: 8px 10px;
+}
+
+.t-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.t-cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
