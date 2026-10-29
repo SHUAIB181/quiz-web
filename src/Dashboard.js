@@ -197,7 +197,7 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  const useDefaultTime = async (q) => {
+  const resetToDefaultTime = async (q) => {
     try {
       await api.patch(`/questions/${q.id}`, { timeSeconds: null });
       setQuestions((current) =>
@@ -508,7 +508,7 @@ function Dashboard({ onLogout }) {
                             </button>
                             <button
                               className="t-btn ghost small"
-                              onClick={() => useDefaultTime(q)}
+                              onClick={() => resetToDefaultTime(q)}
                             >
                               Use default
                             </button>
