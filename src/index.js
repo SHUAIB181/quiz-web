@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App";
 import TeacherLogin from "./TeacherLogin";
 import AddQuestion from "./AddQuestion";
+import "./exam-theme.css";
 import reportWebVitals from "./reportWebVitals";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

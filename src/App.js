@@ -194,6 +194,11 @@ function App() {
   const currentQuestion = questions[currentIndex];
   const isLastQuestion = currentIndex >= questions.length - 1;
 
+  const activeTime = mode === "perQuestion" ? questionTimeLeft : timeLeft;
+  const timeLow =
+    quizStarted && activeTime <= (mode === "perQuestion" ? 10 : 30);
+  const answeredCount = Object.keys(answers).length;
+
   let timerText = `Time Remaining: ${formatTime(timeLeft)}`;
   if (mode === "perQuestion") {
     timerText = quizStarted
@@ -202,14 +207,42 @@ function App() {
   }
 
   return (
-    <div className="quiz-container">
-      <h2 className="timer">{timerText}</h2>
-      <h1 className="quiz-title">Let's do this</h1>
+    <div className="exam-page">
+      <header className="exam-bar">
+        <div className="exam-brand">
+          <span className="exam-seal" aria-hidden="true" />
+          Online examination
+        </div>
+        <div className={`timer ${timeLow ? "low" : ""}`} role="timer">
+          {timerText}
+        </div>
+      </header>
 
+      <div className="quiz-container">
+      <h1 className="quiz-title">
+        {quizStarted ? "Answer sheet" : "Before you begin"}
+      </h1>
+
+      {!quizStarted && (
+        <ol className="exam-instructions">
+          <li>Type your full name exactly as it should appear on your result.</li>
+          <li>
+            {mode === "perQuestion"
+              ? "Each question is timed. When time ends, the next question opens and you cannot go back."
+              : "The timer starts when you press Start Quiz. Your answers are submitted automatically when time ends."}
+          </li>
+          <li>Choose one answer for each question. Do not refresh or leave this page.</li>
+        </ol>
+      )}
+
+      <label className="field-label" htmlFor="candidate-name">
+        Full name
+      </label>
       <input
+        id="candidate-name"
         className={`name-input ${nameError ? "input-error" : ""}`}
         type="text"
-        placeholder="Enter Your Name"
+        placeholder="Type your full name"
         value={name}
         disabled={quizStarted}
         onChange={(e) => {
@@ -247,6 +280,23 @@ function App() {
       {/* Total time: every question on one page */}
       {quizStarted && mode === "total" && (
         <>
+          <div className="answered-bar">
+            <span>
+              {answeredCount} of {questions.length} answered
+            </span>
+            <div className="answered-track">
+              <div
+                className="answered-fill"
+                style={{
+                  width: `${
+                    questions.length
+                      ? (answeredCount / questions.length) * 100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
           {questions.map((q, index) => (
             <div className="question" key={q.id}>
               <h3>
@@ -263,7 +313,10 @@ function App() {
                     disabled={submitting || timeLeft === 0}
                     onChange={() => handleAnswer(q.id, option)}
                   />
-                  {option}
+                  <span className="option-letter" aria-hidden="true">
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <span className="option-text">{option}</span>
                 </label>
               ))}
             </div>
@@ -301,8 +354,11 @@ function App() {
                   disabled={submitting || questionTimeLeft === 0}
                   onChange={() => handleAnswer(currentQuestion.id, option)}
                 />
-                {option}
-              </label>
+                <span className="option-letter" aria-hidden="true">
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <span className="option-text">{option}</span>
+                </label>
             ))}
           </div>
 
@@ -324,6 +380,7 @@ function App() {
           </p>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,430 @@
+/* Exam theme: answer-sheet bubbles, blue-black ink, red marking pen.
+   Loaded after App.css and Teacher.css, so it overrides them.
+   To go back to the old look, remove the import of this file. */
+
+:root {
+  --ink: #14203a;
+  --ink-2: #0b1426;
+  --blue: #4a6aa5;      /* printed form lines */
+  --red: #c4303c;       /* marking pen */
+  --green: #2d7a58;
+  --rule: #d9e0ea;
+  --sheet: #fcfdfe;
+  --serif: "Libre Caslon Text", Georgia, "Times New Roman", serif;
+  --sans: "Public Sans", "Segoe UI", system-ui, sans-serif;
+
+  /* re-point the variables the older stylesheets use */
+  --primary: var(--ink);
+  --primary-dark: var(--ink-2);
+  --bg: #edf1f5;
+  --card: var(--sheet);
+  --text: #16213a;
+  --muted: #5d6b82;
+  --border: var(--rule);
+  --danger: var(--red);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+/* ---------- Top bar ---------- */
+.exam-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px max(20px, calc((100% - 760px) / 2));
+  background: rgba(252, 253, 254, 0.94);
+  border-bottom: 1px solid var(--rule);
+  backdrop-filter: blur(6px);
+}
+
+.exam-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.exam-seal {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--ink);
+}
+
+.exam-bar .timer {
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fff;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+}
+
+.exam-bar .timer.low {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+/* ---------- The answer sheet ---------- */
+.quiz-container {
+  max-width: 760px;
+  margin: 28px auto 56px;
+  padding: 36px 40px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(20, 32, 58, 0.06),
+    0 24px 48px -32px rgba(20, 32, 58, 0.35);
+}
+
+.quiz-title {
+  margin: 0 0 18px;
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.exam-instructions {
+  margin: 0 0 26px;
+  padding: 16px 20px 16px 38px;
+  color: var(--muted);
+  line-height: 1.6;
+  background: #f4f7fb;
+  border-left: 3px solid var(--blue);
+}
+
+.exam-instructions li + li {
+  margin-top: 6px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.name-input {
+  border-radius: 6px;
+}
+
+.name-input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(74, 106, 165, 0.25);
+}
+
+.btn-primary {
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-weight: 600;
+}
+
+.btn-primary:focus-visible {
+  outline: 3px solid rgba(74, 106, 165, 0.5);
+  outline-offset: 2px;
+}
+
+/* ---------- Questions and OMR-style options ---------- */
+.question {
+  margin-top: 8px;
+  padding: 26px 0 6px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+.question h3 {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.question-progress {
+  margin: 22px 0 0;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.answered-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.answered-track {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: #e3e9f1;
+  border-radius: 99px;
+}
+
+.answered-fill {
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.25s ease;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.option:hover {
+  background: #f1f5fa;
+  border: none;
+}
+
+.option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.option-letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: #fff;
+  border: 1.5px solid var(--blue);
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.option:has(input:checked),
+.option:has(input:checked):hover {
+  background: #eaf0f8;
+  border: none;
+  font-weight: 500;
+}
+
+.option:has(input:checked) .option-letter {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.option:has(input:focus-visible) {
+  outline: 3px solid rgba(74, 106, 165, 0.5);
+  outline-offset: 1px;
+}
+
+.option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ---------- Result: scored in red pen ---------- */
+.result-page {
+  padding: 40px 16px 64px;
+  background: transparent;
+}
+
+.result-card {
+  max-width: 720px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(20, 32, 58, 0.06),
+    0 24px 48px -32px rgba(20, 32, 58, 0.35);
+}
+
+.result-header h1 {
+  font-family: var(--serif);
+}
+
+.result-name {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+.result-badge {
+  color: var(--green);
+  background: transparent;
+  border: 1.5px solid var(--green);
+  border-radius: 4px;
+}
+
+/* the total, circled by hand */
+.score-circle {
+  width: 170px;
+  height: 170px;
+  background: none;
+  border: 3px solid var(--red);
+  border-radius: 54% 46% 52% 48% / 48% 52% 46% 54%;
+  transform: rotate(-4deg);
+}
+
+.score-inner {
+  width: auto;
+  height: auto;
+  background: none;
+}
+
+.score-number {
+  font-family: var(--serif);
+  color: var(--red);
+}
+
+.score-percent {
+  color: var(--muted);
+}
+
+.review-title {
+  font-family: var(--serif);
+}
+
+.review-item {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-left-width: 5px;
+  border-radius: 4px;
+}
+
+.review-item.correct {
+  background: #f4faf7;
+  border-left-color: var(--green);
+}
+
+.review-item.wrong {
+  background: #fdf5f5;
+  border-left-color: var(--red);
+}
+
+.review-text {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+}
+
+.correct .review-status {
+  color: var(--green);
+}
+
+.wrong .review-status {
+  color: var(--red);
+}
+
+.correct .review-status::before {
+  content: "\2713\00a0";
+}
+
+.wrong .review-status::before {
+  content: "\2717\00a0";
+}
+
+/* ---------- Teacher pages: same paper, quieter ---------- */
+.teacher-page {
+  --primary: var(--ink);
+  --primary-dark: var(--ink-2);
+  --border: var(--rule);
+  --danger: var(--red);
+  --success: var(--green);
+  --muted: #5d6b82;
+  --text: #16213a;
+
+  font-family: var(--sans);
+  background: var(--bg);
+}
+
+.t-title,
+.t-header h1,
+.t-section-title,
+.t-stat-value {
+  font-family: var(--serif);
+}
+
+.t-card,
+.t-stat {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(20, 32, 58, 0.06),
+    0 20px 40px -32px rgba(20, 32, 58, 0.35);
+}
+
+.t-stat-value {
+  color: var(--ink);
+}
+
+.t-table th {
+  background: #f1f4f8;
+}
+
+.t-table tbody tr:hover {
+  background: #f6f9fc;
+}
+
+.t-score {
+  color: var(--ink);
+  background: #e6edf7;
+}
+
+.t-mode.active {
+  background: #eef3fa;
+}
+
+.t-input:focus,
+.t-select:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(74, 106, 165, 0.25);
+}
+
+.t-btn.ghost {
+  color: var(--ink);
+}
+
+.t-btn.ghost:hover:not(:disabled) {
+  background: #eef3fa;
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 600px) {
+  .exam-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .quiz-container {
+    margin: 16px 12px 40px;
+    padding: 24px 20px;
+  }
+}
