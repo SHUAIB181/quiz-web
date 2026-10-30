@@ -11,7 +11,7 @@ import {
   AnimatePresence,
   LazyMotion,
   MotionConfig,
-  domAnimation,
+  domMax,
   m,
 } from "motion/react";
 import "./index.css";
@@ -81,7 +81,7 @@ root.render(
   <React.StrictMode>
     {/* "user" turns movement down for people who ask their device for less motion */}
     <MotionConfig reducedMotion="user">
-      <LazyMotion features={domAnimation}>
+      <LazyMotion features={domMax}>
         <BrowserRouter>
           <AnimatedRoutes />
         </BrowserRouter>

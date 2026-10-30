@@ -3,6 +3,7 @@ import axios from "axios";
 import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
+import QuestionNavigator from "./QuestionNavigator";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
@@ -27,6 +28,8 @@ function App() {
 
   // answers are saved by question id: { 1: "20", 2: "4" }
   const [answers, setAnswers] = useState({});
+  const [marked, setMarked] = useState({}); // questions flagged "mark for review"
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   // The server marks the quiz and sends back { score, total, review }
   const [result, setResult] = useState(null);
@@ -75,6 +78,22 @@ function App() {
 
   const handleAnswer = (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
+  };
+
+  const toggleMark = (questionId) => {
+    setMarked((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
+  };
+
+  // Scroll to a question and put the cursor on its first option
+  const jumpToQuestion = (questionId) => {
+    const el = document.getElementById(`question-${questionId}`);
+    if (!el) return;
+
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+
+    const firstOption = el.querySelector("input");
+    if (firstOption) firstOption.focus({ preventScroll: true });
   };
 
   const submitQuiz = async () => {
@@ -228,6 +247,17 @@ function App() {
   const timeLow =
     quizStarted && activeTime <= (mode === "perQuestion" ? 10 : 30);
   const answeredCount = Object.keys(answers).length;
+  const unansweredCount = questions.length - answeredCount;
+  const markedCount = questions.filter((q) => marked[q.id]).length;
+
+  // Ask before submitting if something is unanswered or marked for review
+  const handleSubmitClick = () => {
+    if ((unansweredCount > 0 || markedCount > 0) && !confirmingSubmit) {
+      setConfirmingSubmit(true);
+      return;
+    }
+    submitQuiz();
+  };
   const timeLimit =
     mode === "perQuestion"
       ? (currentQuestion && currentQuestion.timeSeconds) || 30
@@ -329,6 +359,17 @@ function App() {
         Start Quiz
       </button>
 
+      {quizStarted && (
+        <QuestionNavigator
+          questions={questions}
+          answers={answers}
+          marked={marked}
+          mode={mode}
+          currentIndex={currentIndex}
+          onJump={jumpToQuestion}
+        />
+      )}
+
       {/* Total time: every question on one page */}
       {quizStarted && mode === "total" && (
         <>
@@ -351,15 +392,30 @@ function App() {
           </div>
           {questions.map((q, index) => (
             <m.div
+              id={`question-${q.id}`}
               className="question"
               key={q.id}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(index, 6) * 0.06 }}
             >
-              <h3>
-                {index + 1}. <MathText text={q.question} />
-              </h3>
+              <div className="question-head">
+                <h3>
+                  {index + 1}. <MathText text={q.question} />
+                </h3>
+                <button
+                  type="button"
+                  className={`mark-btn ${marked[q.id] ? "on" : ""}`}
+                  aria-pressed={Boolean(marked[q.id])}
+                  disabled={submitting || timeLeft === 0}
+                  onClick={() => toggleMark(q.id)}
+                >
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path d="M3 1.5v13M3 2.5h9l-2 3.5 2 3.5H3" />
+                  </svg>
+                  {marked[q.id] ? "Marked for review" : "Mark for review"}
+                </button>
+              </div>
 
               {q.options.map((option, i) => (
                 <m.label
@@ -394,13 +450,66 @@ function App() {
 
           {submitError && <p className="error-text">{submitError}</p>}
 
+          <AnimatePresence initial={false}>
+            {confirmingSubmit && (
+              <m.div
+                key="confirm"
+                className="submit-confirm"
+                role="group"
+                aria-label="Before you submit"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22 }}
+              >
+                <p className="submit-confirm-title">Before you submit</p>
+                <ul>
+                  {unansweredCount > 0 && (
+                    <li>
+                      {unansweredCount} question
+                      {unansweredCount > 1 ? "s are" : " is"} not answered
+                    </li>
+                  )}
+                  {markedCount > 0 && (
+                    <li>
+                      {markedCount} question{markedCount > 1 ? "s are" : " is"}{" "}
+                      marked for review
+                    </li>
+                  )}
+                  {unansweredCount === 0 && markedCount === 0 && (
+                    <li>Everything is answered.</li>
+                  )}
+                </ul>
+                <div className="submit-confirm-actions">
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => setConfirmingSubmit(false)}
+                  >
+                    Keep reviewing
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={submitQuiz}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Submitting..." : "Submit now"}
+                  </button>
+                </div>
+              </m.div>
+            )}
+          </AnimatePresence>
+
+          {!confirmingSubmit && (
           <button
             className="btn-primary"
-            onClick={submitQuiz}
+            onClick={handleSubmitClick}
             disabled={submitting}
           >
             {submitting ? "Submitting..." : "Submit Quiz"}
           </button>
+          )}
         </>
       )}
 

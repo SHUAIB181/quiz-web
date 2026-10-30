@@ -310,7 +310,15 @@ function Dashboard({ onLogout }) {
             </div>
           )}
 
-          <label className={`t-mode ${mode === "total" ? "active" : ""}`}>
+          <label className="t-mode">
+            {mode === "total" && (
+              <m.div
+                layoutId="timer-mode"
+                className="t-mode-highlight"
+                style={{ borderRadius: 12 }}
+                transition={{ type: "spring", stiffness: 420, damping: 36 }}
+              />
+            )}
             <input
               type="radio"
               name="timer-mode"
@@ -325,7 +333,15 @@ function Dashboard({ onLogout }) {
             </span>
           </label>
 
-          <label className={`t-mode ${mode === "perQuestion" ? "active" : ""}`}>
+          <label className="t-mode">
+            {mode === "perQuestion" && (
+              <m.div
+                layoutId="timer-mode"
+                className="t-mode-highlight"
+                style={{ borderRadius: 12 }}
+                transition={{ type: "spring", stiffness: 420, damping: 36 }}
+              />
+            )}
             <input
               type="radio"
               name="timer-mode"
@@ -340,8 +356,16 @@ function Dashboard({ onLogout }) {
             </span>
           </label>
 
+          <AnimatePresence mode="wait" initial={false}>
           {mode === "total" && (
-            <div className="t-time-row">
+            <m.div
+              key="total-fields"
+              className="t-time-row"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
               <div className="t-field">
                 <label htmlFor="total-minutes">Minutes</label>
                 <input
@@ -366,11 +390,18 @@ function Dashboard({ onLogout }) {
                   onChange={(e) => setTotalSecs(e.target.value)}
                 />
               </div>
-            </div>
+            </m.div>
           )}
 
           {mode === "perQuestion" && (
-            <div className="t-field">
+            <m.div
+              key="question-fields"
+              className="t-field"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
               <label htmlFor="default-seconds">
                 Default time per question (seconds)
               </label>
@@ -387,8 +418,9 @@ function Dashboard({ onLogout }) {
                 Questions without their own time use this. To give one question
                 a different time, use Edit time in the question bank below.
               </p>
-            </div>
+            </m.div>
           )}
+          </AnimatePresence>
 
           <button className="t-btn" onClick={saveSettings}>
             Save timer settings
