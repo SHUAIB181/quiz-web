@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
 import MathText from "./MathText";
+import CountUp from "./CountUp";
+import { AnimatePresence, m } from "motion/react";
 
 const formatSeconds = (total) => {
   const minutes = Math.floor(total / 60);
@@ -255,14 +257,27 @@ function Dashboard({ onLogout }) {
           </div>
         </div>
 
-        {notice && (
-          <div className={`t-notice ${notice.type}`}>{notice.text}</div>
-        )}
+        <AnimatePresence>
+          {notice && (
+            <m.div
+              key={notice.text}
+              className={`t-notice ${notice.type}`}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {notice.text}
+            </m.div>
+          )}
+        </AnimatePresence>
 
         <div className="t-stats">
           <div className="t-stat">
             <p className="t-stat-label">Total students</p>
-            <p className="t-stat-value">{results.length}</p>
+            <p className="t-stat-value">
+              <CountUp to={results.length} />
+            </p>
           </div>
           <div className="t-stat">
             <p className="t-stat-label">Average score</p>
@@ -270,11 +285,15 @@ function Dashboard({ onLogout }) {
           </div>
           <div className="t-stat">
             <p className="t-stat-label">Highest score</p>
-            <p className="t-stat-value">{highest}</p>
+            <p className="t-stat-value">
+              <CountUp to={highest} />
+            </p>
           </div>
           <div className="t-stat">
             <p className="t-stat-label">Lowest score</p>
-            <p className="t-stat-value">{lowest}</p>
+            <p className="t-stat-value">
+              <CountUp to={lowest} />
+            </p>
           </div>
         </div>
 

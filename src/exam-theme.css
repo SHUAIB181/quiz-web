@@ -431,6 +431,9 @@ body {
 
 /* Paste this at the very bottom of src/exam-theme.css */
 
+/* Replace the whole formulas/motion section at the bottom of src/exam-theme.css with this.
+   (Delete from the line "/* ---------- Formulas ---------- */" down, then paste this file.) */
+
 /* ---------- Formulas ---------- */
 .math .katex {
   font-size: 1.1em;
@@ -557,39 +560,6 @@ body {
   box-shadow: none;
 }
 
-/* choosing an answer fills the bubble with a small pop */
-.option:has(input:checked) .option-letter {
-  animation: bubble-fill 0.25s ease-out;
-}
-
-@keyframes bubble-fill {
-  0% {
-    transform: scale(0.82);
-  }
-  60% {
-    transform: scale(1.12);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* the next question slides in once, so a change of question is noticed */
-.question-enter {
-  animation: question-in 0.35s ease-out;
-}
-
-@keyframes question-in {
-  from {
-    opacity: 0;
-    transform: translateX(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 /* ---------- Result: the red pen circles the score, then the review follows ---------- */
 .score-mark {
   position: relative;
@@ -611,15 +581,6 @@ body {
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: pen-draw 1.1s 0.25s ease-out forwards;
-}
-
-@keyframes pen-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
 }
 
 .score-text {
@@ -631,22 +592,6 @@ body {
   justify-content: center;
 }
 
-.review-item {
-  animation: review-in 0.4s ease-out both;
-  animation-delay: calc(1.2s + var(--i, 0) * 70ms);
-}
-
-@keyframes review-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* ---------- Respect people who turn motion off ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -654,13 +599,5 @@ body {
   *::after {
     animation: none !important;
     transition: none !important;
-  }
-
-  .score-pen path {
-    stroke-dashoffset: 0;
-  }
-
-  .review-item {
-    opacity: 1;
   }
 }

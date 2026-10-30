@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./App.css";
 import MathText from "./MathText";
+import CountUp from "./CountUp";
+import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
   `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -158,26 +160,32 @@ function App() {
 
           <div className="score-mark">
             <svg className="score-pen" viewBox="0 0 200 140" aria-hidden="true">
-              <path
-                pathLength="1"
+              <m.path
                 d="M100 8 C 150 6 192 34 190 72 C 188 112 146 134 98 132 C 52 130 10 108 12 66 C 14 30 54 10 108 10 C 128 10 150 18 160 26"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 1.1, delay: 0.25, ease: "easeOut" }}
               />
             </svg>
             <div className="score-text">
               <span className="score-number">
-                {score}/{total}
+                <CountUp to={score} delay={0.4} />/{total}
               </span>
-              <span className="score-percent">{percent}%</span>
+              <span className="score-percent">
+                <CountUp to={percent} delay={0.4} />%
+              </span>
             </div>
           </div>
 
           <h2 className="review-title">Review Answers</h2>
 
           {review.map((item, index) => (
-            <div
+            <m.div
               key={item.id}
               className={`review-item ${item.correct ? "correct" : "wrong"}`}
-              style={{ "--i": Math.min(index, 8) }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 1.3 + Math.min(index, 8) * 0.07 }}
             >
               <div className="review-top">
                 <span className="review-q">Question {index + 1}</span>
@@ -206,7 +214,7 @@ function App() {
                   </strong>
                 </p>
               )}
-            </div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -259,8 +267,15 @@ function App() {
         {quizStarted ? "Answer sheet" : "Before you begin"}
       </h1>
 
+      <AnimatePresence initial={false}>
       {!quizStarted && (
-        <ol className="exam-instructions">
+        <m.ol
+          key="instructions"
+          className="exam-instructions"
+          style={{ overflow: "hidden" }}
+          exit={{ opacity: 0, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+          transition={{ duration: 0.25 }}
+        >
           <li>Type your full name exactly as it should appear on your result.</li>
           <li>
             {mode === "perQuestion"
@@ -268,8 +283,9 @@ function App() {
               : "The timer starts when you press Start Quiz. Your answers are submitted automatically when time ends."}
           </li>
           <li>Choose one answer for each question. Do not refresh or leave this page.</li>
-        </ol>
+        </m.ol>
       )}
+      </AnimatePresence>
 
       <label className="field-label" htmlFor="candidate-name">
         Full name
@@ -334,13 +350,24 @@ function App() {
             </div>
           </div>
           {questions.map((q, index) => (
-            <div className="question" key={q.id}>
+            <m.div
+              className="question"
+              key={q.id}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: Math.min(index, 6) * 0.06 }}
+            >
               <h3>
                 {index + 1}. <MathText text={q.question} />
               </h3>
 
               {q.options.map((option, i) => (
-                <label key={i} className="option">
+                <m.label
+                  key={i}
+                  className="option"
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                >
                   <input
                     type="radio"
                     name={`question-${q.id}`}
@@ -349,15 +376,20 @@ function App() {
                     disabled={submitting || timeLeft === 0}
                     onChange={() => handleAnswer(q.id, option)}
                   />
-                  <span className="option-letter" aria-hidden="true">
+                  <m.span
+                    className="option-letter"
+                    aria-hidden="true"
+                    animate={{ scale: (answers[q.id] === option) ? [1, 1.2, 1] : 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     {String.fromCharCode(65 + i)}
-                  </span>
+                  </m.span>
                   <span className="option-text">
                     <MathText text={option} />
                   </span>
-                </label>
+                </m.label>
               ))}
-            </div>
+            </m.div>
           ))}
 
           {submitError && <p className="error-text">{submitError}</p>}
@@ -379,13 +411,26 @@ function App() {
             Question {currentIndex + 1} of {questions.length}
           </p>
 
-          <div className="question question-enter" key={currentQuestion.id}>
+          <AnimatePresence mode="wait" initial={false}>
+          <m.div
+            className="question"
+            key={currentQuestion.id}
+            initial={{ opacity: 0, x: 28 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -28 }}
+            transition={{ duration: 0.22 }}
+          >
             <h3>
               <MathText text={currentQuestion.question} />
             </h3>
 
             {currentQuestion.options.map((option, i) => (
-              <label key={i} className="option">
+              <m.label
+                  key={i}
+                  className="option"
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                >
                 <input
                   type="radio"
                   name={`question-${currentQuestion.id}`}
@@ -394,15 +439,21 @@ function App() {
                   disabled={submitting || questionTimeLeft === 0}
                   onChange={() => handleAnswer(currentQuestion.id, option)}
                 />
-                <span className="option-letter" aria-hidden="true">
+                <m.span
+                    className="option-letter"
+                    aria-hidden="true"
+                    animate={{ scale: (answers[currentQuestion.id] === option) ? [1, 1.2, 1] : 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     {String.fromCharCode(65 + i)}
-                  </span>
+                  </m.span>
                   <span className="option-text">
                     <MathText text={option} />
                   </span>
-                </label>
+                </m.label>
             ))}
-          </div>
+          </m.div>
+          </AnimatePresence>
 
           {submitError && <p className="error-text">{submitError}</p>}
 
