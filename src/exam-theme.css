@@ -428,3 +428,239 @@ body {
     padding: 24px 20px;
   }
 }
+
+/* Paste this at the very bottom of src/exam-theme.css */
+
+/* ---------- Formulas ---------- */
+.math .katex {
+  font-size: 1.1em;
+}
+
+.formula-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: #f4f7fb;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.formula-hint {
+  flex-basis: 100%;
+  margin-bottom: 2px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.formula-btn {
+  min-width: 40px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: #fff;
+  border: 1.5px solid var(--rule);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.formula-btn:hover {
+  background: #eef3fa;
+  border-color: var(--ink);
+}
+
+.formula-btn:active {
+  transform: scale(0.95);
+}
+
+.formula-btn:focus-visible {
+  outline: 3px solid rgba(74, 106, 165, 0.5);
+  outline-offset: 2px;
+}
+
+.formula-preview {
+  margin: 4px 0 20px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px dashed var(--blue);
+  border-radius: 8px;
+}
+
+.formula-preview-title {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.formula-preview-question {
+  margin: 0 0 10px;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.formula-preview-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.formula-preview-option .option-letter {
+  width: 28px;
+  height: 28px;
+}
+
+/* ---------- Time line under the top bar ---------- */
+.exam-bar {
+  position: sticky;
+}
+
+.time-line {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.time-line-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transition: transform 1s linear, background 0.4s;
+}
+
+.time-line-fill.low {
+  background: var(--red);
+}
+
+/* ---------- Buttons that respond ---------- */
+.btn-primary {
+  transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgba(20, 32, 58, 0.6);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+
+/* choosing an answer fills the bubble with a small pop */
+.option:has(input:checked) .option-letter {
+  animation: bubble-fill 0.25s ease-out;
+}
+
+@keyframes bubble-fill {
+  0% {
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* the next question slides in once, so a change of question is noticed */
+.question-enter {
+  animation: question-in 0.35s ease-out;
+}
+
+@keyframes question-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ---------- Result: the red pen circles the score, then the review follows ---------- */
+.score-mark {
+  position: relative;
+  width: 220px;
+  height: 154px;
+  margin: 0 auto 32px;
+}
+
+.score-pen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.score-pen path {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pen-draw 1.1s 0.25s ease-out forwards;
+}
+
+@keyframes pen-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.score-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-item {
+  animation: review-in 0.4s ease-out both;
+  animation-delay: calc(1.2s + var(--i, 0) * 70ms);
+}
+
+@keyframes review-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Respect people who turn motion off ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .score-pen path {
+    stroke-dashoffset: 0;
+  }
+
+  .review-item {
+    opacity: 1;
+  }
+}

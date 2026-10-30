@@ -1,7 +1,28 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
+import MathText from "./MathText";
+
+// Buttons for the formula toolbar. The cursor lands inside the first { }.
+const SYMBOLS = [
+  { label: "\u221A", title: "Square root", snippet: "$\\sqrt{}$" },
+  { label: "a/b", title: "Fraction", snippet: "$\\frac{}{}$" },
+  { label: "x\u00B2", title: "Power", snippet: "$x^{}$" },
+  { label: "x\u2081", title: "Subscript", snippet: "$x_{}$" },
+  { label: "\u03C0", title: "Pi", snippet: "$\\pi$" },
+  { label: "\u03B8", title: "Theta", snippet: "$\\theta$" },
+  { label: "\u00D7", title: "Times", snippet: "$\\times$" },
+  { label: "\u00F7", title: "Divide", snippet: "$\\div$" },
+  { label: "\u00B1", title: "Plus or minus", snippet: "$\\pm$" },
+  { label: "\u2264", title: "Less than or equal", snippet: "$\\le$" },
+  { label: "\u2265", title: "Greater than or equal", snippet: "$\\ge$" },
+  { label: "\u2260", title: "Not equal", snippet: "$\\ne$" },
+  { label: "\u221E", title: "Infinity", snippet: "$\\infty$" },
+  { label: "\u00B0", title: "Degrees", snippet: "$^{\\circ}$" },
+  { label: "\u03A3", title: "Sum", snippet: "$\\sum$" },
+  { label: "\u222B", title: "Integral", snippet: "$\\int$" },
+];
 
 function AddQuestion() {
   const [category, setCategory] = useState("");
@@ -9,6 +30,8 @@ function AddQuestion() {
   const [options, setOptions] = useState(["", "", "", ""]);
   const [correct, setCorrect] = useState("");
   const [timeSeconds, setTimeSeconds] = useState("");
+  const [activeField, setActiveField] = useState("question");
+  const fieldRefs = useRef({});
   const [message, setMessage] = useState(null);
 
   const labels = ["A", "B", "C", "D"];
@@ -22,6 +45,32 @@ function AddQuestion() {
     const next = [...options];
     next[index] = value;
     setOptions(next);
+    setMessage(null);
+  };
+
+  // Put a formula snippet into the box the teacher last clicked
+  const insertSnippet = (snippet) => {
+    const key = activeField;
+    const el = fieldRefs.current[key];
+    const current = key === "question" ? question : options[key];
+    const start = el ? el.selectionStart : current.length;
+    const end = el ? el.selectionEnd : current.length;
+    const next = current.slice(0, start) + snippet + current.slice(end);
+
+    if (key === "question") {
+      setQuestion(next);
+    } else {
+      setOption(key, next);
+    }
+
+    const inner = snippet.indexOf("{}");
+    const caret = start + (inner >= 0 ? inner + 1 : snippet.length);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(caret, caret);
+      }
+    });
     setMessage(null);
   };
 
@@ -102,6 +151,8 @@ function AddQuestion() {
             <label htmlFor="q-text">Question</label>
             <input
               id="q-text"
+              ref={(el) => (fieldRefs.current.question = el)}
+              onFocus={() => setActiveField("question")}
               className="t-input"
               placeholder="Type the question"
               value={question}
@@ -112,12 +163,33 @@ function AddQuestion() {
             />
           </div>
 
+          <div className="formula-bar" role="toolbar" aria-label="Maths symbols">
+            <span className="formula-hint">
+              Click a box, then a symbol. Formulas sit between $ signs.
+            </span>
+            {SYMBOLS.map((symbol) => (
+              <button
+                key={symbol.title}
+                type="button"
+                className="formula-btn"
+                title={symbol.title}
+                aria-label={symbol.title}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertSnippet(symbol.snippet)}
+              >
+                {symbol.label}
+              </button>
+            ))}
+          </div>
+
           <div className="t-grid-2">
             {options.map((value, i) => (
               <div className="t-field" key={i}>
                 <label htmlFor={`q-opt-${i}`}>Option {labels[i]}</label>
                 <input
                   id={`q-opt-${i}`}
+                  ref={(el) => (fieldRefs.current[i] = el)}
+                  onFocus={() => setActiveField(i)}
                   className="t-input"
                   placeholder={`Option ${labels[i]}`}
                   value={value}
@@ -147,6 +219,26 @@ function AddQuestion() {
               ))}
             </select>
           </div>
+
+          {question.trim() && (
+            <div className="formula-preview">
+              <p className="formula-preview-title">How students will see it</p>
+              <p className="formula-preview-question">
+                <MathText text={question} />
+              </p>
+              {options.map(
+                (value, i) =>
+                  value.trim() && (
+                    <p className="formula-preview-option" key={i}>
+                      <span className="option-letter" aria-hidden="true">
+                        {labels[i]}
+                      </span>
+                      <MathText text={value} />
+                    </p>
+                  )
+              )}
+            </div>
+          )}
 
           <div className="t-field">
             <label htmlFor="q-time">Time for this question (seconds, optional)</label>

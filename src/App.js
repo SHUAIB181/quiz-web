@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./App.css";
+import MathText from "./MathText";
 
 const formatTime = (seconds) =>
   `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -18,6 +19,7 @@ function App() {
   //   "perQuestion"  each question has its own countdown
   const [mode, setMode] = useState("total");
   const [timeLeft, setTimeLeft] = useState(180); // total mode
+  const [totalSeconds, setTotalSeconds] = useState(180);
   const [currentIndex, setCurrentIndex] = useState(0); // per-question mode
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0); // per-question mode
 
@@ -39,6 +41,7 @@ function App() {
         setQuestions(questionsResponse.data);
         setMode(settingsResponse.data.mode);
         setTimeLeft(settingsResponse.data.totalSeconds);
+        setTotalSeconds(settingsResponse.data.totalSeconds);
       })
       .catch(() =>
         setLoadError("Could not load the quiz. Please tell your teacher.")
@@ -153,8 +156,14 @@ function App() {
             )}
           </div>
 
-          <div className="score-circle" style={{ "--pct": `${percent}%` }}>
-            <div className="score-inner">
+          <div className="score-mark">
+            <svg className="score-pen" viewBox="0 0 200 140" aria-hidden="true">
+              <path
+                pathLength="1"
+                d="M100 8 C 150 6 192 34 190 72 C 188 112 146 134 98 132 C 52 130 10 108 12 66 C 14 30 54 10 108 10 C 128 10 150 18 160 26"
+              />
+            </svg>
+            <div className="score-text">
               <span className="score-number">
                 {score}/{total}
               </span>
@@ -168,6 +177,7 @@ function App() {
             <div
               key={item.id}
               className={`review-item ${item.correct ? "correct" : "wrong"}`}
+              style={{ "--i": Math.min(index, 8) }}
             >
               <div className="review-top">
                 <span className="review-q">Question {index + 1}</span>
@@ -175,13 +185,25 @@ function App() {
                   {item.correct ? "Correct" : "Incorrect"}
                 </span>
               </div>
-              <p className="review-text">{item.question}</p>
+              <p className="review-text">
+                <MathText text={item.question} />
+              </p>
               <p className="review-line">
-                Your answer: <strong>{item.yourAnswer || "Not answered"}</strong>
+                Your answer:{" "}
+                <strong>
+                  {item.yourAnswer ? (
+                    <MathText text={item.yourAnswer} />
+                  ) : (
+                    "Not answered"
+                  )}
+                </strong>
               </p>
               {!item.correct && item.correctAnswer && (
                 <p className="review-line">
-                  Correct answer: <strong>{item.correctAnswer}</strong>
+                  Correct answer:{" "}
+                  <strong>
+                    <MathText text={item.correctAnswer} />
+                  </strong>
                 </p>
               )}
             </div>
@@ -198,6 +220,14 @@ function App() {
   const timeLow =
     quizStarted && activeTime <= (mode === "perQuestion" ? 10 : 30);
   const answeredCount = Object.keys(answers).length;
+  const timeLimit =
+    mode === "perQuestion"
+      ? (currentQuestion && currentQuestion.timeSeconds) || 30
+      : totalSeconds;
+  const timeFraction =
+    quizStarted && timeLimit
+      ? Math.max(0, Math.min(1, activeTime / timeLimit))
+      : 1;
 
   let timerText = `Time Remaining: ${formatTime(timeLeft)}`;
   if (mode === "perQuestion") {
@@ -211,10 +241,16 @@ function App() {
       <header className="exam-bar">
         <div className="exam-brand">
           <span className="exam-seal" aria-hidden="true" />
-          Let's Do ThisS
+          Online examination
         </div>
         <div className={`timer ${timeLow ? "low" : ""}`} role="timer">
           {timerText}
+        </div>
+        <div className="time-line" aria-hidden="true">
+          <div
+            className={`time-line-fill ${timeLow ? "low" : ""}`}
+            style={{ transform: `scaleX(${timeFraction})` }}
+          />
         </div>
       </header>
 
@@ -300,7 +336,7 @@ function App() {
           {questions.map((q, index) => (
             <div className="question" key={q.id}>
               <h3>
-                {index + 1}. {q.question}
+                {index + 1}. <MathText text={q.question} />
               </h3>
 
               {q.options.map((option, i) => (
@@ -316,7 +352,9 @@ function App() {
                   <span className="option-letter" aria-hidden="true">
                     {String.fromCharCode(65 + i)}
                   </span>
-                  <span className="option-text">{option}</span>
+                  <span className="option-text">
+                    <MathText text={option} />
+                  </span>
                 </label>
               ))}
             </div>
@@ -341,8 +379,10 @@ function App() {
             Question {currentIndex + 1} of {questions.length}
           </p>
 
-          <div className="question" key={currentQuestion.id}>
-            <h3>{currentQuestion.question}</h3>
+          <div className="question question-enter" key={currentQuestion.id}>
+            <h3>
+              <MathText text={currentQuestion.question} />
+            </h3>
 
             {currentQuestion.options.map((option, i) => (
               <label key={i} className="option">
@@ -357,7 +397,9 @@ function App() {
                 <span className="option-letter" aria-hidden="true">
                     {String.fromCharCode(65 + i)}
                   </span>
-                  <span className="option-text">{option}</span>
+                  <span className="option-text">
+                    <MathText text={option} />
+                  </span>
                 </label>
             ))}
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
+import MathText from "./MathText";
 
 const formatSeconds = (total) => {
   const minutes = Math.floor(total / 60);
@@ -473,9 +474,20 @@ function Dashboard({ onLogout }) {
                 {filteredQuestions.map((q) => (
                   <tr key={q.id}>
                     <td>{q.category}</td>
-                    <td>{q.question}</td>
-                    <td>{q.options.join(", ")}</td>
-                    <td>{q.answer}</td>
+                    <td>
+                      <MathText text={q.question} />
+                    </td>
+                    <td>
+                      {q.options.map((option, i) => (
+                        <span key={i}>
+                          {i > 0 ? ", " : ""}
+                          <MathText text={option} />
+                        </span>
+                      ))}
+                    </td>
+                    <td>
+                      <MathText text={q.answer} />
+                    </td>
                     <td>
                       {editingId === q.id ? (
                         <div className="t-inline">
