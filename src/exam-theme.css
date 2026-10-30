@@ -431,9 +431,6 @@ body {
 
 /* Paste this at the very bottom of src/exam-theme.css */
 
-/* Replace the whole formulas/motion section at the bottom of src/exam-theme.css with this.
-   (Delete from the line "/* ---------- Formulas ---------- */" down, then paste this file.) */
-
 /* ---------- Formulas ---------- */
 .math .katex {
   font-size: 1.1em;
