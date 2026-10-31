@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
+import Modal from "./Modal";
 import { AnimatePresence, m } from "motion/react";
 
 const formatSeconds = (total) => {
@@ -20,6 +21,7 @@ function Dashboard({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
   const [search, setSearch] = useState("");
+  const [pending, setPending] = useState(null); // what the popup is asking about
 
   // Timer settings form
   const [mode, setMode] = useState("total");
@@ -84,11 +86,6 @@ function Dashboard({ onLogout }) {
   };
 
   const clearResults = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete all results?"
-    );
-    if (!confirmed) return;
-
     try {
       await api.delete("/clear-results");
       setResults([]);
@@ -99,17 +96,23 @@ function Dashboard({ onLogout }) {
   };
 
   const deleteQuestion = async (q) => {
-    const confirmed = window.confirm(
-      `Delete this question?\n\n${q.question}\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
     try {
       await api.delete(`/questions/${q.id}`);
       setQuestions((current) => current.filter((item) => item.id !== q.id));
       setNotice({ type: "success", text: "Question deleted." });
     } catch (error) {
       handleFailure(error, "Could not delete the question.");
+    }
+  };
+
+  const confirmPending = async () => {
+    const item = pending;
+    setPending(null);
+    if (!item) return;
+    if (item.kind === "results") {
+      await clearResults();
+    } else {
+      await deleteQuestion(item.q);
     }
   };
 
@@ -220,6 +223,11 @@ function Dashboard({ onLogout }) {
     }
   };
 
+  // keep the popup's words while it fades out
+  const pendingRef = useRef(null);
+  if (pending) pendingRef.current = pending;
+  const view = pendingRef.current;
+
   const scores = results.map((student) => student.score);
   const average =
     scores.length > 0
@@ -237,6 +245,41 @@ function Dashboard({ onLogout }) {
   return (
     <div className="teacher-page">
       <div className="t-shell">
+        <Modal
+          open={pending !== null}
+          onClose={() => setPending(null)}
+          tone="danger"
+          title={
+            view && view.kind === "question"
+              ? "Delete this question?"
+              : "Clear all results?"
+          }
+        >
+          {view && view.kind === "question" && (
+            <p className="modal-quote">
+              <MathText text={view.q.question} />
+            </p>
+          )}
+          <p className="modal-body">
+            {view && view.kind === "question"
+              ? "This cannot be undone."
+              : "Every student's result will be removed. This cannot be undone."}
+          </p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="t-btn ghost"
+              data-autofocus
+              onClick={() => setPending(null)}
+            >
+              Cancel
+            </button>
+            <button type="button" className="t-btn danger" onClick={confirmPending}>
+              {view && view.kind === "question" ? "Delete question" : "Clear results"}
+            </button>
+          </div>
+        </Modal>
+
         <div className="t-header">
           <h1>Teacher dashboard</h1>
           <div className="t-actions">
@@ -246,7 +289,7 @@ function Dashboard({ onLogout }) {
             <button className="t-btn ghost" onClick={exportResults}>
               Export results
             </button>
-            <button className="t-btn danger" onClick={clearResults}>
+            <button className="t-btn danger" onClick={() => setPending({ kind: "results" })}>
               Clear results
             </button>
             {onLogout && (
@@ -592,7 +635,7 @@ function Dashboard({ onLogout }) {
                             </button>
                             <button
                               className="t-btn danger small"
-                              onClick={() => deleteQuestion(q)}
+                              onClick={() => setPending({ kind: "question", q })}
                             >
                               Delete
                             </button>

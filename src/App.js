@@ -4,6 +4,8 @@ import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
 import QuestionNavigator from "./Questionnavigator";
+import Modal from "./Modal";
+import BubbleBurst from "./Bubbleburst";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
@@ -32,6 +34,8 @@ function App() {
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
   const [flashId, setFlashId] = useState(null); // briefly lights up a question after a jump
   const [slowLoad, setSlowLoad] = useState(false); // the free server can take a while to wake
+  const [confirmingStart, setConfirmingStart] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // The server marks the quiz and sends back { score, total, review }
   const [result, setResult] = useState(null);
@@ -41,6 +45,8 @@ function App() {
   const submittingRef = useRef(false);
 
   const submitted = result !== null;
+  // a popup is open: keep the keyboard shortcuts quiet
+  const modalOpen = confirmingStart || confirmingSubmit || (timedOut && !submitted);
 
   useEffect(() => {
     Promise.all([axios.get("/questions"), axios.get("/quiz-settings")])
@@ -80,6 +86,13 @@ function App() {
 
   const handleAnswer = (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
+  };
+
+  const startQuiz = () => {
+    setConfirmingStart(false);
+    setCurrentIndex(0);
+    setQuestionTimeLeft(questions[0].timeSeconds || 30);
+    setQuizStarted(true);
   };
 
   const toggleMark = (questionId) => {
@@ -177,7 +190,7 @@ function App() {
     if (!quizStarted || submitted || mode !== "perQuestion") return;
 
     const onKey = (event) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (modalOpen || event.ctrlKey || event.metaKey || event.altKey) return;
       const question = questions[currentIndex];
       if (!question || questionTimeLeft === 0) return;
 
@@ -193,7 +206,38 @@ function App() {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [quizStarted, submitted, mode, currentIndex, questionTimeLeft, questions]);
+  }, [quizStarted, submitted, mode, currentIndex, questionTimeLeft, questions, modalOpen]);
+
+  // Toasts disappear by themselves
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  // One minute left (total time mode, for quizzes longer than 90 seconds)
+  useEffect(() => {
+    if (
+      mode === "total" &&
+      quizStarted &&
+      !submitted &&
+      timeLeft === 60 &&
+      totalSeconds > 90
+    ) {
+      setToast({ id: Date.now(), text: "One minute left", tone: "warn" });
+    }
+  }, [mode, quizStarted, submitted, timeLeft, totalSeconds]);
+
+  // The browser asks before the page is refreshed or closed mid-quiz
+  useEffect(() => {
+    if (!quizStarted || submitted) return;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [quizStarted, submitted]);
 
   if (submitted) {
     const { score, total, review } = result;
@@ -225,6 +269,9 @@ function App() {
           </div>
 
           <div className="score-mark">
+            {percent >= 50 && (
+              <BubbleBurst count={percent >= 80 ? 18 : 10} />
+            )}
             <svg className="score-pen" viewBox="0 0 200 140" aria-hidden="true">
               <m.path
                 d="M100 8 C 150 6 192 34 190 72 C 188 112 146 134 98 132 C 52 130 10 108 12 66 C 14 30 54 10 108 10 C 128 10 150 18 160 26"
@@ -457,9 +504,7 @@ function App() {
             return;
           }
           setNameError("");
-          setCurrentIndex(0);
-          setQuestionTimeLeft(questions[0].timeSeconds || 30);
-          setQuizStarted(true);
+          setConfirmingStart(true);
         }}
       >
         Start Quiz
@@ -584,58 +629,6 @@ function App() {
 
           {submitError && <p className="error-text">{submitError}</p>}
 
-          <AnimatePresence initial={false}>
-            {confirmingSubmit && (
-              <m.div
-                key="confirm"
-                className="submit-confirm"
-                role="group"
-                aria-label="Before you submit"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.22 }}
-              >
-                <p className="submit-confirm-title">Before you submit</p>
-                <ul>
-                  {unansweredCount > 0 && (
-                    <li>
-                      {unansweredCount} question
-                      {unansweredCount > 1 ? "s are" : " is"} not answered
-                    </li>
-                  )}
-                  {markedCount > 0 && (
-                    <li>
-                      {markedCount} question{markedCount > 1 ? "s are" : " is"}{" "}
-                      marked for review
-                    </li>
-                  )}
-                  {unansweredCount === 0 && markedCount === 0 && (
-                    <li>Everything is answered.</li>
-                  )}
-                </ul>
-                <div className="submit-confirm-actions">
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => setConfirmingSubmit(false)}
-                  >
-                    Keep reviewing
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={submitQuiz}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Submitting..." : "Submit now"}
-                  </button>
-                </div>
-              </m.div>
-            )}
-          </AnimatePresence>
-
-          {!confirmingSubmit && (
           <button
             className="btn-primary"
             onClick={handleSubmitClick}
@@ -643,7 +636,6 @@ function App() {
           >
             {submitting ? "Submitting..." : "Submit Quiz"}
           </button>
-          )}
         </>
       )}
 
@@ -717,6 +709,121 @@ function App() {
           </p>
         </>
       )}
+      </div>
+
+      <Modal
+        open={confirmingStart}
+        onClose={() => setConfirmingStart(false)}
+        title="Ready to begin?"
+      >
+        <p className="modal-body">
+          {questions.length} question{questions.length === 1 ? "" : "s"}.{" "}
+          {mode === "perQuestion"
+            ? "Each question is timed and you cannot go back."
+            : `You have ${formatTime(totalSeconds)} in total.`}{" "}
+          The clock starts as soon as you press Start now.
+        </p>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => setConfirmingStart(false)}
+          >
+            Not yet
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            data-autofocus
+            onClick={startQuiz}
+          >
+            Start now
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmingSubmit && !timedOut}
+        onClose={() => setConfirmingSubmit(false)}
+        title="Before you submit"
+      >
+        <ul className="modal-list">
+          {unansweredCount > 0 && (
+            <li>
+              {unansweredCount} question{unansweredCount > 1 ? "s are" : " is"}{" "}
+              not answered
+            </li>
+          )}
+          {markedCount > 0 && (
+            <li>
+              {markedCount} question{markedCount > 1 ? "s are" : " is"} marked
+              for review
+            </li>
+          )}
+          {unansweredCount === 0 && markedCount === 0 && (
+            <li>Everything is answered.</li>
+          )}
+        </ul>
+        {submitError && <p className="error-text">{submitError}</p>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn-ghost"
+            data-autofocus
+            onClick={() => setConfirmingSubmit(false)}
+          >
+            Keep reviewing
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={submitQuiz}
+            disabled={submitting}
+          >
+            {submitting ? "Submitting..." : "Submit now"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={timedOut && !submitted} title="Time is up">
+        {submitError ? (
+          <>
+            <p className="error-text">{submitError}</p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                data-autofocus
+                onClick={submitQuiz}
+                disabled={submitting}
+              >
+                {submitting ? "Submitting..." : "Try again"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="modal-body">Your answers are being submitted.</p>
+            <span className="loading-bar" />
+          </>
+        )}
+      </Modal>
+
+      <div className="toast-wrap" aria-live="polite">
+        <AnimatePresence>
+          {toast && (
+            <m.div
+              key={toast.id}
+              className={`toast ${toast.tone}`}
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            >
+              {toast.text}
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
