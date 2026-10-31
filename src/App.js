@@ -3,7 +3,7 @@ import axios from "axios";
 import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
-import QuestionNavigator from "./QuestionNavigator";
+import QuestionNavigator from "./Questionnavigator";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
