@@ -3,7 +3,7 @@ import axios from "axios";
 import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
-import QuestionNavigator from "./Questionnavigator.js";
+import QuestionNavigator from "./QuestionNavigator";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
@@ -30,6 +30,8 @@ function App() {
   const [answers, setAnswers] = useState({});
   const [marked, setMarked] = useState({}); // questions flagged "mark for review"
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+  const [flashId, setFlashId] = useState(null); // briefly lights up a question after a jump
+  const [slowLoad, setSlowLoad] = useState(false); // the free server can take a while to wake
 
   // The server marks the quiz and sends back { score, total, review }
   const [result, setResult] = useState(null);
@@ -94,6 +96,9 @@ function App() {
 
     const firstOption = el.querySelector("input");
     if (firstOption) firstOption.focus({ preventScroll: true });
+
+    setFlashId(questionId);
+    setTimeout(() => setFlashId(null), 1000);
   };
 
   const submitQuiz = async () => {
@@ -153,6 +158,43 @@ function App() {
     questions.length,
   ]);
 
+  // Tell students the server is waking up if loading takes more than a few seconds
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setSlowLoad(true), 4000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  // Start each screen at the top: the result, and every new question
+  useEffect(() => {
+    if (submitted || (quizStarted && mode === "perQuestion")) {
+      window.scrollTo({ top: 0 });
+    }
+  }, [submitted, quizStarted, mode, currentIndex]);
+
+  // Keyboard (per-question mode): A to D choose an option, Enter moves on
+  useEffect(() => {
+    if (!quizStarted || submitted || mode !== "perQuestion") return;
+
+    const onKey = (event) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const question = questions[currentIndex];
+      if (!question || questionTimeLeft === 0) return;
+
+      const index = ["a", "b", "c", "d"].indexOf(event.key.toLowerCase());
+      if (index >= 0 && question.options[index] !== undefined) {
+        const chosen = question.options[index];
+        setAnswers((prev) => ({ ...prev, [question.id]: chosen }));
+      } else if (event.key === "Enter") {
+        const tag = document.activeElement && document.activeElement.tagName;
+        if (tag !== "BUTTON") actionsRef.current.goToNext();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [quizStarted, submitted, mode, currentIndex, questionTimeLeft, questions]);
+
   if (submitted) {
     const { score, total, review } = result;
     const percent = total ? Math.round((score / total) * 100) : 0;
@@ -164,7 +206,12 @@ function App() {
         : "Keep practicing!";
 
     return (
-      <div className="result-page">
+      <m.div
+        className="result-page"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="result-card">
           <div className="result-header">
             <span className="result-badge">Quiz Submitted</span>
@@ -236,7 +283,7 @@ function App() {
             </m.div>
           ))}
         </div>
-      </div>
+      </m.div>
     );
   }
 
@@ -267,11 +314,13 @@ function App() {
       ? Math.max(0, Math.min(1, activeTime / timeLimit))
       : 1;
 
-  let timerText = `Time Remaining: ${formatTime(timeLeft)}`;
+  let timerLabel = "Time remaining: ";
+  let timerClock = formatTime(timeLeft);
   if (mode === "perQuestion") {
-    timerText = quizStarted
-      ? `Time for this question: ${formatTime(questionTimeLeft)}`
+    timerLabel = quizStarted
+      ? "Time for this question: "
       : "Each question has its own time limit";
+    timerClock = quizStarted ? formatTime(questionTimeLeft) : "";
   }
 
   return (
@@ -281,9 +330,30 @@ function App() {
           <span className="exam-seal" aria-hidden="true" />
           Online examination
         </div>
-        <div className={`timer ${timeLow ? "low" : ""}`} role="timer">
-          {timerText}
-        </div>
+        <m.div
+          className={`timer ${timeLow ? "low" : ""}`}
+          role="timer"
+          animate={timeLow ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+          transition={
+            timeLow ? { duration: 1, repeat: Infinity } : { duration: 0.2 }
+          }
+        >
+          {timerLabel}
+          <span className="timer-digits">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <m.span
+                key={timerClock}
+                className="timer-tick"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -10, opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                {timerClock}
+              </m.span>
+            </AnimatePresence>
+          </span>
+        </m.div>
         <div className="time-line" aria-hidden="true">
           <div
             className={`time-line-fill ${timeLow ? "low" : ""}`}
@@ -293,9 +363,18 @@ function App() {
       </header>
 
       <div className="quiz-container">
-      <h1 className="quiz-title">
-        {quizStarted ? "Answer sheet" : "Before you begin"}
-      </h1>
+      <AnimatePresence mode="wait" initial={false}>
+        <m.h1
+          key={quizStarted ? "sheet" : "begin"}
+          className="quiz-title"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18 }}
+        >
+          {quizStarted ? "Answer sheet" : "Before you begin"}
+        </m.h1>
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
       {!quizStarted && (
@@ -315,6 +394,33 @@ function App() {
           <li>Choose one answer for each question. Do not refresh or leave this page.</li>
         </m.ol>
       )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {!quizStarted && (
+          <m.div
+            key="setup"
+            style={{ overflow: "hidden", padding: 4, margin: -4 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.28 }}
+          >
+      <AnimatePresence initial={false}>
+        {loading && (
+          <m.div
+            key="loading"
+            className="loading-note"
+            role="status"
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <span className="loading-bar" />
+            <p>
+              {slowLoad
+                ? "The exam is starting up. The first visit can take up to a minute, so please wait here."
+                : "Loading your exam..."}
+            </p>
+          </m.div>
+        )}
       </AnimatePresence>
 
       <label className="field-label" htmlFor="candidate-name">
@@ -358,6 +464,20 @@ function App() {
       >
         Start Quiz
       </button>
+          </m.div>
+        )}
+      </AnimatePresence>
+
+      {quizStarted && (
+        <m.p
+          className="candidate-chip"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.15 }}
+        >
+          Candidate: <strong>{name}</strong>
+        </m.p>
+      )}
 
       {quizStarted && (
         <QuestionNavigator
@@ -396,8 +516,22 @@ function App() {
               className="question"
               key={q.id}
               initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: Math.min(index, 6) * 0.06 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                backgroundColor:
+                  flashId === q.id
+                    ? [
+                        "rgba(74,106,165,0)",
+                        "rgba(74,106,165,0.14)",
+                        "rgba(74,106,165,0)",
+                      ]
+                    : "rgba(74,106,165,0)",
+              }}
+              transition={{
+                default: { duration: 0.3, delay: Math.min(index, 6) * 0.06 },
+                backgroundColor: { duration: 0.9 },
+              }}
             >
               <div className="question-head">
                 <h3>
@@ -578,7 +712,8 @@ function App() {
               : "Next question"}
           </button>
           <p className="review-line">
-            You cannot go back to earlier questions.
+            You cannot go back to earlier questions. Press A, B, C or D to
+            choose, and Enter for the next question.
           </p>
         </>
       )}

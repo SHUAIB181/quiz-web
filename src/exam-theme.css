@@ -598,3 +598,69 @@ body {
     transition: none !important;
   }
 }
+
+/* Paste this at the very bottom of src/exam-theme.css (add it after what is already there) */
+
+/* ---------- Timer digits that tick over ---------- */
+.timer-digits {
+  position: relative;
+  display: inline-block;
+  min-width: 4ch;
+  text-align: left;
+}
+
+.timer-tick {
+  display: inline-block;
+}
+
+/* ---------- Candidate tag after the quiz starts ---------- */
+.candidate-chip {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.candidate-chip strong {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+/* ---------- Waiting for the server to wake up ---------- */
+.loading-note {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  overflow: hidden;
+  background: #f4f7fb;
+  border-left: 3px solid var(--blue);
+  border-radius: 2px;
+}
+
+.loading-note p {
+  margin: 12px 0 0;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.loading-bar {
+  display: block;
+  height: 6px;
+  background: linear-gradient(90deg, #dfe6f0 0%, #ffffff 50%, #dfe6f0 100%);
+  background-size: 200% 100%;
+  border-radius: 99px;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Room for the soft flash when jumping to a question ---------- */
+.question {
+  margin-right: -12px;
+  margin-left: -12px;
+  padding-right: 12px;
+  padding-left: 12px;
+  border-radius: 6px;
+}
