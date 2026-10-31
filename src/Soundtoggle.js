@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { m } from "motion/react";
-import { isSoundOn, setSoundOn, tick } from "./feedback";
+import { isSoundOn, setSoundOn, tick } from "./Feedback";
 
 // The speaker button in the top bar
 function SoundToggle() {
