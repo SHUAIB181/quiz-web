@@ -6,6 +6,9 @@ import CountUp from "./CountUp";
 import QuestionNavigator from "./Questionnavigator";
 import Modal from "./Modal";
 import BubbleBurst from "./Bubbleburst";
+import Button from "./Button";
+import SoundToggle from "./Soundtoggle";
+import { buzz, tick } from "./Feedback";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
@@ -36,6 +39,8 @@ function App() {
   const [slowLoad, setSlowLoad] = useState(false); // the free server can take a while to wake
   const [confirmingStart, setConfirmingStart] = useState(false);
   const [toast, setToast] = useState(null);
+  const [hot, setHot] = useState(null); // the option the highlight is gliding to
+  const [visibleId, setVisibleId] = useState(null); // the question on screen (total mode)
 
   // The server marks the quiz and sends back { score, total, review }
   const [result, setResult] = useState(null);
@@ -86,6 +91,8 @@ function App() {
 
   const handleAnswer = (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
+    buzz();
+    tick();
   };
 
   const startQuiz = () => {
@@ -97,6 +104,8 @@ function App() {
 
   const toggleMark = (questionId) => {
     setMarked((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
+    buzz(8);
+    tick();
   };
 
   // Scroll to a question and put the cursor on its first option
@@ -198,6 +207,8 @@ function App() {
       if (index >= 0 && question.options[index] !== undefined) {
         const chosen = question.options[index];
         setAnswers((prev) => ({ ...prev, [question.id]: chosen }));
+        buzz();
+        tick();
       } else if (event.key === "Enter") {
         const tag = document.activeElement && document.activeElement.tagName;
         if (tag !== "BUTTON") actionsRef.current.goToNext();
@@ -207,6 +218,30 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [quizStarted, submitted, mode, currentIndex, questionTimeLeft, questions, modalOpen]);
+
+  // Total mode: find the question that is on screen, for the navigator's ring
+  useEffect(() => {
+    if (!quizStarted || submitted || mode !== "total") return;
+
+    const elements = questions
+      .map((q) => document.getElementById(`question-${q.id}`))
+      .filter(Boolean);
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleId(Number(entry.target.id.replace("question-", "")));
+          }
+        });
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [quizStarted, submitted, mode, questions]);
 
   // Toasts disappear by themselves
   useEffect(() => {
@@ -377,6 +412,7 @@ function App() {
           <span className="exam-seal" aria-hidden="true" />
           Online examination
         </div>
+        <SoundToggle />
         <m.div
           className={`timer ${timeLow ? "low" : ""}`}
           role="timer"
@@ -493,8 +529,9 @@ function App() {
         </p>
       )}
 
-      <button
+      <Button
         className="btn-primary"
+        wake={name.trim() !== "" && questions.length > 0 && !loading}
         disabled={
           loading || questions.length === 0 || loadError !== "" || quizStarted
         }
@@ -508,7 +545,7 @@ function App() {
         }}
       >
         Start Quiz
-      </button>
+      </Button>
           </m.div>
         )}
       </AnimatePresence>
@@ -531,6 +568,7 @@ function App() {
           marked={marked}
           mode={mode}
           currentIndex={currentIndex}
+          currentId={visibleId}
           onJump={jumpToQuestion}
         />
       )}
@@ -558,6 +596,7 @@ function App() {
           {questions.map((q, index) => (
             <m.div
               id={`question-${q.id}`}
+              onPointerLeave={() => setHot(null)}
               className="question"
               key={q.id}
               initial={{ opacity: 0, y: 14 }}
@@ -582,33 +621,53 @@ function App() {
                 <h3>
                   {index + 1}. <MathText text={q.question} />
                 </h3>
-                <button
+                <Button
                   type="button"
                   className={`mark-btn ${marked[q.id] ? "on" : ""}`}
                   aria-pressed={Boolean(marked[q.id])}
                   disabled={submitting || timeLeft === 0}
                   onClick={() => toggleMark(q.id)}
                 >
-                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <m.svg
+                    key={marked[q.id] ? "on" : "off"}
+                    viewBox="0 0 16 16"
+                    width="14"
+                    height="14"
+                    aria-hidden="true"
+                    initial={marked[q.id] ? { y: -9, rotate: -25 } : false}
+                    animate={{ y: 0, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 600, damping: 13 }}
+                  >
                     <path d="M3 1.5v13M3 2.5h9l-2 3.5 2 3.5H3" />
-                  </svg>
+                  </m.svg>
                   {marked[q.id] ? "Marked for review" : "Mark for review"}
-                </button>
+                </Button>
               </div>
 
               {q.options.map((option, i) => (
                 <m.label
                   key={i}
                   className="option"
+                  onPointerEnter={(e) => e.pointerType === "mouse" && setHot({ q: q.id, i })}
                   whileTap={{ scale: 0.985 }}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 >
+                  {hot && hot.q === q.id && hot.i === i && (
+                    <m.span
+                      layoutId={`option-hl-${q.id}`}
+                      className="option-hl"
+                      aria-hidden="true"
+                      transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                    />
+                  )}
                   <input
                     type="radio"
                     name={`question-${q.id}`}
                     value={option}
                     checked={answers[q.id] === option}
                     disabled={submitting || timeLeft === 0}
+                    onFocus={() => setHot({ q: q.id, i })}
+                    onBlur={() => setHot(null)}
                     onChange={() => handleAnswer(q.id, option)}
                   />
                   <m.span
@@ -617,6 +676,13 @@ function App() {
                     animate={{ scale: (answers[q.id] === option) ? [1, 1.2, 1] : 1 }}
                     transition={{ duration: 0.3 }}
                   >
+                    <m.span
+                      className="option-fill"
+                      aria-hidden="true"
+                      initial={false}
+                      animate={{ scale: (answers[q.id] === option) ? 1 : 0 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    />
                     {String.fromCharCode(65 + i)}
                   </m.span>
                   <span className="option-text">
@@ -629,13 +695,15 @@ function App() {
 
           {submitError && <p className="error-text">{submitError}</p>}
 
-          <button
+          <Button
             className="btn-primary"
             onClick={handleSubmitClick}
             disabled={submitting}
+            status={submitting ? "loading" : "idle"}
+            wake={unansweredCount === 0}
           >
-            {submitting ? "Submitting..." : "Submit Quiz"}
-          </button>
+            Submit Quiz
+          </Button>
         </>
       )}
 
@@ -649,6 +717,7 @@ function App() {
           <AnimatePresence mode="wait" initial={false}>
           <m.div
             className="question"
+            onPointerLeave={() => setHot(null)}
             key={currentQuestion.id}
             initial={{ opacity: 0, x: 28 }}
             animate={{ opacity: 1, x: 0 }}
@@ -663,16 +732,27 @@ function App() {
               <m.label
                   key={i}
                   className="option"
+                  onPointerEnter={(e) => e.pointerType === "mouse" && setHot({ q: currentQuestion.id, i })}
                   whileTap={{ scale: 0.985 }}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 >
+                  {hot && hot.q === currentQuestion.id && hot.i === i && (
+                    <m.span
+                      layoutId={`option-hl-${currentQuestion.id}`}
+                      className="option-hl"
+                      aria-hidden="true"
+                      transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                    />
+                  )}
                 <input
                   type="radio"
                   name={`question-${currentQuestion.id}`}
                   value={option}
                   checked={answers[currentQuestion.id] === option}
                   disabled={submitting || questionTimeLeft === 0}
-                  onChange={() => handleAnswer(currentQuestion.id, option)}
+                  onFocus={() => setHot({ q: currentQuestion.id, i })}
+                    onBlur={() => setHot(null)}
+                    onChange={() => handleAnswer(currentQuestion.id, option)}
                 />
                 <m.span
                     className="option-letter"
@@ -680,6 +760,13 @@ function App() {
                     animate={{ scale: (answers[currentQuestion.id] === option) ? [1, 1.2, 1] : 1 }}
                     transition={{ duration: 0.3 }}
                   >
+                    <m.span
+                      className="option-fill"
+                      aria-hidden="true"
+                      initial={false}
+                      animate={{ scale: (answers[currentQuestion.id] === option) ? 1 : 0 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    />
                     {String.fromCharCode(65 + i)}
                   </m.span>
                   <span className="option-text">
@@ -692,17 +779,15 @@ function App() {
 
           {submitError && <p className="error-text">{submitError}</p>}
 
-          <button
+          <Button
             className="btn-primary"
             onClick={goToNext}
             disabled={submitting}
+            status={submitting ? "loading" : "idle"}
+            wake={answers[currentQuestion.id] !== undefined}
           >
-            {isLastQuestion
-              ? submitting
-                ? "Submitting..."
-                : "Submit Quiz"
-              : "Next question"}
-          </button>
+            {isLastQuestion ? "Submit Quiz" : "Next question"}
+          </Button>
           <p className="review-line">
             You cannot go back to earlier questions. Press A, B, C or D to
             choose, and Enter for the next question.
@@ -724,21 +809,21 @@ function App() {
           The clock starts as soon as you press Start now.
         </p>
         <div className="modal-actions">
-          <button
+          <Button
             type="button"
             className="btn-ghost"
             onClick={() => setConfirmingStart(false)}
           >
             Not yet
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="btn-primary"
             data-autofocus
             onClick={startQuiz}
           >
             Start now
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -766,22 +851,23 @@ function App() {
         </ul>
         {submitError && <p className="error-text">{submitError}</p>}
         <div className="modal-actions">
-          <button
+          <Button
             type="button"
             className="btn-ghost"
             data-autofocus
             onClick={() => setConfirmingSubmit(false)}
           >
             Keep reviewing
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="btn-primary"
             onClick={submitQuiz}
             disabled={submitting}
+            status={submitting ? "loading" : "idle"}
           >
-            {submitting ? "Submitting..." : "Submit now"}
-          </button>
+            Submit now
+          </Button>
         </div>
       </Modal>
 
@@ -790,15 +876,16 @@ function App() {
           <>
             <p className="error-text">{submitError}</p>
             <div className="modal-actions">
-              <button
+              <Button
                 type="button"
                 className="btn-primary"
                 data-autofocus
                 onClick={submitQuiz}
                 disabled={submitting}
+                status={submitting ? "loading" : "idle"}
               >
-                {submitting ? "Submitting..." : "Try again"}
-              </button>
+                Try again
+              </Button>
             </div>
           </>
         ) : (

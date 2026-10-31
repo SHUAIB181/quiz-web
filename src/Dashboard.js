@@ -5,6 +5,7 @@ import "./Teacher.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
 import Modal from "./Modal";
+import Button from "./Button";
 import { AnimatePresence, m } from "motion/react";
 
 const formatSeconds = (total) => {
@@ -29,6 +30,7 @@ function Dashboard({ onLogout }) {
   const [totalSecs, setTotalSecs] = useState("0");
   const [defaultSecs, setDefaultSecs] = useState("30");
   const [settingsMessage, setSettingsMessage] = useState(null);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   // Editing the time of one question
   const [editingId, setEditingId] = useState(null);
@@ -151,6 +153,8 @@ function Dashboard({ onLogout }) {
         defaultQuestionSeconds,
       });
       setSettings({ mode, totalSeconds, defaultQuestionSeconds });
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 1600);
       setSettingsMessage({
         type: "success",
         text: "Timer settings saved. They apply to quizzes that start from now on.",
@@ -266,17 +270,17 @@ function Dashboard({ onLogout }) {
               : "Every student's result will be removed. This cannot be undone."}
           </p>
           <div className="modal-actions">
-            <button
+            <Button
               type="button"
               className="t-btn ghost"
               data-autofocus
               onClick={() => setPending(null)}
             >
               Cancel
-            </button>
-            <button type="button" className="t-btn danger" onClick={confirmPending}>
+            </Button>
+            <Button type="button" className="t-btn danger" onClick={confirmPending}>
               {view && view.kind === "question" ? "Delete question" : "Clear results"}
-            </button>
+            </Button>
           </div>
         </Modal>
 
@@ -286,16 +290,16 @@ function Dashboard({ onLogout }) {
             <Link className="t-btn" to="/teacher/add-question">
               Add question
             </Link>
-            <button className="t-btn ghost" onClick={exportResults}>
+            <Button className="t-btn ghost" onClick={exportResults}>
               Export results
-            </button>
-            <button className="t-btn danger" onClick={() => setPending({ kind: "results" })}>
+            </Button>
+            <Button className="t-btn danger" onClick={() => setPending({ kind: "results" })}>
               Clear results
-            </button>
+            </Button>
             {onLogout && (
-              <button className="t-btn ghost" onClick={onLogout}>
+              <Button className="t-btn ghost" onClick={onLogout}>
                 Log out
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -465,9 +469,13 @@ function Dashboard({ onLogout }) {
           )}
           </AnimatePresence>
 
-          <button className="t-btn" onClick={saveSettings}>
+          <Button
+            className="t-btn"
+            onClick={saveSettings}
+            status={settingsSaved ? "done" : "idle"}
+          >
             Save timer settings
-          </button>
+          </Button>
         </div>
 
         <div className="t-card">
@@ -565,8 +573,14 @@ function Dashboard({ onLogout }) {
                     </td>
                   </tr>
                 )}
+                <AnimatePresence initial={false}>
                 {filteredQuestions.map((q) => (
-                  <tr key={q.id}>
+                  <m.tr
+                    key={q.id}
+                    layout="position"
+                    exit={{ opacity: 0, x: 48 }}
+                    transition={{ duration: 0.22 }}
+                  >
                     <td>{q.category}</td>
                     <td>
                       <MathText text={q.question} />
@@ -584,7 +598,12 @@ function Dashboard({ onLogout }) {
                     </td>
                     <td>
                       {editingId === q.id ? (
-                        <div className="t-inline">
+                        <m.div
+                          className="t-inline"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        >
                           <input
                             className="t-input t-input-small"
                             type="number"
@@ -595,7 +614,7 @@ function Dashboard({ onLogout }) {
                             onChange={(e) => setEditValue(e.target.value)}
                           />
                           <span>sec</span>
-                        </div>
+                        </m.div>
                       ) : q.timeSeconds ? (
                         formatSeconds(q.timeSeconds)
                       ) : (
@@ -603,48 +622,55 @@ function Dashboard({ onLogout }) {
                       )}
                     </td>
                     <td>
-                      <div className="t-cell-actions">
+                      <m.div
+                        className="t-cell-actions"
+                        key={editingId === q.id ? "edit" : "view"}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                      >
                         {editingId === q.id ? (
                           <>
-                            <button
+                            <Button
                               className="t-btn small"
                               onClick={() => saveTime(q)}
                             >
                               Save
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               className="t-btn ghost small"
                               onClick={() => resetToDefaultTime(q)}
                             >
                               Use default
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               className="t-btn ghost small"
                               onClick={() => setEditingId(null)}
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </>
                         ) : (
                           <>
-                            <button
+                            <Button
                               className="t-btn ghost small"
                               onClick={() => startEdit(q)}
                             >
                               Edit time
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               className="t-btn danger small"
                               onClick={() => setPending({ kind: "question", q })}
                             >
                               Delete
-                            </button>
+                            </Button>
                           </>
                         )}
-                      </div>
+                      </m.div>
                     </td>
-                  </tr>
+                  </m.tr>
                 ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>

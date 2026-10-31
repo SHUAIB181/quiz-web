@@ -779,3 +779,168 @@ body {
   left: 50%;
   border-radius: 50%;
 }
+
+/* Paste this at the very bottom of src/exam-theme.css (add it after what is already there) */
+
+/* ---------- One feel for every button ---------- */
+.press {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-label,
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+}
+
+.btn-label {
+  transition: opacity 0.15s;
+}
+
+.btn-label[data-hidden="true"] {
+  opacity: 0;
+}
+
+.btn-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.btn-dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.btn-status svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* a button that is busy should not look switched off */
+.press[data-status="loading"]:disabled {
+  cursor: progress;
+  opacity: 1;
+}
+
+.ink-ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  background: currentColor;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.btn-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 70%
+  );
+}
+
+/* ---------- Answer bubbles are shaded in, and one highlight glides between rows ---------- */
+.option:hover {
+  background: transparent;
+}
+
+.option-hl {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #eaf0f8;
+  border-radius: 6px;
+}
+
+.option > .option-letter,
+.option > .option-text {
+  position: relative;
+  z-index: 1;
+}
+
+.option-letter {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.option-fill {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+.option:has(input:checked) .option-letter {
+  color: #fff;
+  background: #fff;
+  border-color: var(--ink);
+  transition: color 0.1s 0.08s, border-color 0.15s;
+}
+
+/* ---------- The ring that travels along the navigator ---------- */
+.nav-ring {
+  position: absolute;
+  inset: -5px;
+  border: 2px solid var(--blue);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.nav-cell.current {
+  box-shadow: none;
+}
+
+/* ---------- Sound button in the top bar ---------- */
+.sound-toggle {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 12px;
+  margin-left: auto;
+  padding: 0;
+  color: var(--ink);
+  background: #fff;
+  border: 1.5px solid var(--rule);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sound-toggle svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sound-toggle[aria-pressed="true"] {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.sound-toggle:focus-visible {
+  outline: 3px solid rgba(74, 106, 165, 0.5);
+  outline-offset: 2px;
+}

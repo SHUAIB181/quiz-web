@@ -9,6 +9,7 @@ function QuestionNavigator({
   marked,
   mode,
   currentIndex,
+  currentId,
   onJump,
 }) {
   const perQuestion = mode === "perQuestion";
@@ -26,7 +27,7 @@ function QuestionNavigator({
           {questions.map((q, index) => {
             const answered = answers[q.id] !== undefined;
             const isMarked = Boolean(marked[q.id]);
-            const isCurrent = perQuestion && index === currentIndex;
+            const isCurrent = perQuestion ? index === currentIndex : q.id === currentId;
             const skipped = perQuestion && index < currentIndex && !answered;
 
             const classes = [
@@ -56,6 +57,14 @@ function QuestionNavigator({
                 transition={{ duration: 0.28 }}
                 whileTap={perQuestion ? undefined : { scale: 0.92 }}
               >
+                {isCurrent && (
+                  <m.span
+                    layoutId="nav-ring"
+                    className="nav-ring"
+                    aria-hidden="true"
+                    transition={{ type: "spring", stiffness: 500, damping: 36 }}
+                  />
+                )}
                 {index + 1}
               </m.button>
             );

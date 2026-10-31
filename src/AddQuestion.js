@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
 import MathText from "./MathText";
+import Button from "./Button";
 
 // Buttons for the formula toolbar. The cursor lands inside the first { }.
 const SYMBOLS = [
@@ -31,6 +32,8 @@ function AddQuestion() {
   const [correct, setCorrect] = useState("");
   const [timeSeconds, setTimeSeconds] = useState("");
   const [activeField, setActiveField] = useState("question");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const fieldRefs = useRef({});
   const [message, setMessage] = useState(null);
 
@@ -88,6 +91,7 @@ function AddQuestion() {
       return;
     }
 
+    setSaving(true);
     try {
       await api.post("/add-question", {
         category,
@@ -106,7 +110,11 @@ function AddQuestion() {
       setOptions(["", "", "", ""]);
       setCorrect("");
       setTimeSeconds("");
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1600);
     } catch (error) {
+      setSaving(false);
       const status = error.response && error.response.status;
       setMessage({
         type: "error",
@@ -257,9 +265,13 @@ function AddQuestion() {
             </p>
           </div>
 
-          <button className="t-btn full" onClick={saveQuestion}>
+          <Button
+            className="t-btn full"
+            onClick={saveQuestion}
+            status={saving ? "loading" : saved ? "done" : "idle"}
+          >
             Save question
-          </button>
+          </Button>
         </div>
       </div>
     </div>

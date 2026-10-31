@@ -2,6 +2,7 @@ import { useState } from "react";
 import Dashboard from "./Dashboard";
 import { teacherLogin, teacherLogout } from "./teacherApi";
 import "./Teacher.css";
+import Button from "./Button";
 
 function TeacherLogin() {
   const [password, setPassword] = useState("");
@@ -72,9 +73,14 @@ function TeacherLogin() {
           {error && <p className="t-error">{error}</p>}
         </div>
 
-        <button className="t-btn full" onClick={signIn} disabled={busy}>
-          {busy ? "Signing in..." : "Sign in"}
-        </button>
+        <Button
+          className="t-btn full"
+          onClick={signIn}
+          disabled={busy}
+          status={busy ? "loading" : "idle"}
+        >
+          Sign in
+        </Button>
       </div>
     </div>
   );
