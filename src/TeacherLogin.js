@@ -51,7 +51,7 @@ function TeacherLogin() {
   return (
     <div className="teacher-page t-center">
       <div className="t-card login">
-        <h1 className="t-title">Teacher login</h1>
+        <h1 className="t-title">Admin login</h1>
         <p className="t-sub">Sign in to manage questions and view results.</p>
 
         <div className="t-field">

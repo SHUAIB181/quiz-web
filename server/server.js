@@ -95,7 +95,7 @@ const requireTeacher = (req, res, next) => {
   next();
 };
 
-app.post("/admin/login", (req, res) => {
+app.post("/Teacher/login", (req, res) => {
   const now = Date.now();
   const ip = req.ip;
   const entry = attempts.get(ip);
@@ -122,7 +122,7 @@ app.post("/admin/login", (req, res) => {
   res.json({ token });
 });
 
-app.post("/admin/logout", requireTeacher, (req, res) => {
+app.post("/Teacher/logout", requireTeacher, (req, res) => {
   sessions.delete(req.headers.authorization.slice(7));
   res.json({ success: true });
 });
