@@ -8,6 +8,8 @@ import Modal from "./Modal";
 import BubbleBurst from "./Bubbleburst";
 import Button from "./Button";
 import SoundToggle from "./Soundtoggle";
+import ExamIllustration from "./ExamIllustration";
+import BubbleLoader from "./BubbleLoader";
 import { buzz, tick } from "./Feedback";
 import { AnimatePresence, m } from "motion/react";
 
@@ -461,6 +463,16 @@ function App() {
 
       <AnimatePresence initial={false}>
       {!quizStarted && (
+        <m.div
+          key="art"
+          style={{ overflow: "hidden" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <ExamIllustration />
+        </m.div>
+      )}
+      {!quizStarted && (
         <m.ol
           key="instructions"
           className="exam-instructions"
@@ -496,7 +508,7 @@ function App() {
             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <span className="loading-bar" />
+            <BubbleLoader />
             <p>
               {slowLoad
                 ? "The exam is starting up. The first visit can take up to a minute, so please wait here."
@@ -891,7 +903,7 @@ function App() {
         ) : (
           <>
             <p className="modal-body">Your answers are being submitted.</p>
-            <span className="loading-bar" />
+            <BubbleLoader />
           </>
         )}
       </Modal>

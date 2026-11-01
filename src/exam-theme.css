@@ -944,3 +944,164 @@ body {
   outline: 3px solid rgba(74, 106, 165, 0.5);
   outline-offset: 2px;
 }
+
+/* Paste this at the very bottom of src/exam-theme.css (add it after what is already there) */
+
+/* ---------- The scene on the "Before you begin" screen ---------- */
+.scene-wrap {
+  margin: 0 0 22px;
+}
+
+.scene {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.scene-sheet {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.scene-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.scene-bubble {
+  fill: #fff;
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.scene-fill {
+  fill: none;
+  stroke: var(--ink);
+}
+
+.scene-letter {
+  fill: var(--blue);
+  font: 600 12px var(--sans);
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: fill 0.15s;
+}
+
+.scene-letter.on {
+  fill: #fff;
+  transition-delay: 0.9s;
+}
+
+.scene-tick {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.scene-clock-ring {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.scene-clock-ring.pulse {
+  animation: ring-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  50% {
+    stroke-width: 4.5;
+  }
+}
+
+.scene-clock-tick {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.scene-clock-dot {
+  fill: var(--ink);
+}
+
+.hand {
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hand-spin 6s linear infinite;
+}
+
+.hand-hour {
+  stroke-width: 4;
+  animation-duration: 36s;
+}
+
+@keyframes hand-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pencil-wood {
+  fill: #f4e6c8;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.pencil-lead {
+  fill: var(--ink);
+}
+
+.pencil-body {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.pencil-ridge {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+}
+
+.pencil-eraser {
+  fill: var(--red);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.scene-caption {
+  min-height: 2em;
+  margin-top: 6px;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.scene-caption p {
+  margin: 0;
+}
+
+/* ---------- Bubble loader ---------- */
+.bubble-loader {
+  display: block;
+  width: 132px;
+  height: 32px;
+  margin: 0 auto;
+}
+
+.loading-note .bubble-loader {
+  margin: 0;
+}
