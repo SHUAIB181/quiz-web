@@ -3,14 +3,14 @@ import axios from "axios";
 import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
-import QuestionNavigator from "./QuestionNavigator";
+import QuestionNavigator from "./Questionnavigator";
 import Modal from "./Modal";
-import BubbleBurst from "./BubbleBurst";
+import BubbleBurst from "./Bubbleburst";
 import Button from "./Button";
-import SoundToggle from "./SoundToggle";
-import ExamIllustration from "./ExamIllustration";
+import SoundToggle from "./Soundtoggle";
+import ExamIllustration from "./ExamIilustration";
 import BubbleLoader from "./BubbleLoader";
-import { buzz, tick } from "./feedback";
+import { buzz, tick } from "./Feedback";
 import { AnimatePresence, m } from "motion/react";
 
 const formatTime = (seconds) =>
