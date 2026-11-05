@@ -285,7 +285,7 @@ function Dashboard({ onLogout }) {
         </Modal>
 
         <div className="t-header">
-          <h1>Admin dashboard</h1>
+          <h1>Teacher dashboard</h1>
           <div className="t-actions">
             <Link className="t-btn" to="/teacher/add-question">
               Add question

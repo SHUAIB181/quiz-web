@@ -1,41 +1,42 @@
-import { useState } from "react";
 import { m } from "motion/react";
-import { isSoundOn, setSoundOn, tick } from "./Feedback";
 
-// The speaker button in the top bar
-function SoundToggle() {
-  const [on, setOn] = useState(isSoundOn());
-
-  const toggle = () => {
-    const next = !on;
-    setSoundOn(next);
-    setOn(next);
-    if (next) tick(true);
-  };
-
+// Four answer bubbles that fill in and empty again, one after another.
+// Used wherever a student waits: the server waking up, submitting at "time is up".
+function BubbleLoader() {
   return (
-    <m.button
-      type="button"
-      className="sound-toggle"
-      onClick={toggle}
-      aria-pressed={on}
-      aria-label={on ? "Sound on" : "Sound off"}
-      title={on ? "Sound on" : "Sound off"}
-      whileTap={{ scale: 0.9 }}
+    <svg
+      className="bubble-loader"
+      viewBox="0 0 132 32"
+      role="img"
+      aria-label="Loading"
     >
-      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-        <path d="M3 8h3l4-3.5v11L6 12H3z" />
-        {on ? (
-          <>
-            <path d="M13 7.5a3.5 3.5 0 010 5" />
-            <path d="M15.2 5.5a6.5 6.5 0 010 9" />
-          </>
-        ) : (
-          <path d="M13 8l4 4M17 8l-4 4" />
-        )}
-      </svg>
-    </m.button>
+      {[0, 1, 2, 3].map((i) => {
+        const cx = 16 + i * 34;
+        return (
+          <g key={i}>
+            <circle className="scene-bubble" cx={cx} cy="16" r="12" />
+            <m.circle
+              className="scene-fill"
+              cx={cx}
+              cy="16"
+              r="6"
+              strokeWidth="12"
+              transform={`rotate(-90 ${cx} 16)`}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: [0, 1, 1, 0] }}
+              transition={{
+                duration: 2.6,
+                repeat: Infinity,
+                times: [0, 0.2, 0.8, 1],
+                delay: i * 0.3,
+                ease: "easeInOut",
+              }}
+            />
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
-export default SoundToggle;
+export default BubbleLoader;
