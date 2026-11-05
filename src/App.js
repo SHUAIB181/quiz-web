@@ -8,7 +8,7 @@ import Modal from "./Modal";
 import BubbleBurst from "./Bubbleburst";
 import Button from "./Button";
 import SoundToggle from "./Soundtoggle";
-import ExamIllustration from "./ExamIilustration";
+import ExamIllustration from "./Examillustration";
 import BubbleLoader from "./BubbleLoader";
 import { buzz, tick } from "./Feedback";
 import { AnimatePresence, m } from "motion/react";
