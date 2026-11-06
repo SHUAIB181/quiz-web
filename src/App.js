@@ -12,7 +12,16 @@ import SoundToggle from "./Soundtoggle";
 import ExamIllustration from "./Examillustration";
 import BubbleLoader from "./BubbleLoader";
 import { buzz, tick } from "./Feedback";
+import { useProtection, watermarkImage } from "./Protection";
 import { AnimatePresence, m } from "motion/react";
+
+const WARNING_TEXT = {
+  hidden: "You left the quiz window.",
+  blur: "You left the quiz window.",
+  "fullscreen-exit": "You left full screen.",
+  printscreen: "A screenshot key was pressed.",
+  print: "Printing is not allowed during the exam.",
+};
 
 const formatTime = (seconds) =>
   `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -45,6 +54,15 @@ function App() {
   const [toast, setToast] = useState(null);
   const [hot, setHot] = useState(null); // the option the highlight is gliding to
   const [visibleId, setVisibleId] = useState(null); // the question on screen (total mode)
+  const [timerOn, setTimerOn] = useState(true); // the teacher can turn the timer off
+  const [protection, setProtection] = useState({
+    enabled: false,
+    maxWarnings: 3,
+    requireFullscreen: false,
+    watermark: true,
+  });
+  const [warning, setWarning] = useState(null); // { type, count } after leaving the window
+  const [forcedEnd, setForcedEnd] = useState(false); // ended because of too many warnings
 
   // The server marks the quiz and sends back { score, total, review }
   const [result, setResult] = useState(null);
@@ -52,16 +70,30 @@ function App() {
   const [submitError, setSubmitError] = useState("");
   const [timedOut, setTimedOut] = useState(false);
   const submittingRef = useRef(false);
+  const violationsRef = useRef([]);
+  const endedByRef = useRef(null);
 
   const submitted = result !== null;
   // a popup is open: keep the keyboard shortcuts quiet
-  const modalOpen = confirmingStart || confirmingSubmit || (timedOut && !submitted);
+  const modalOpen =
+    confirmingStart ||
+    confirmingSubmit ||
+    warning !== null ||
+    ((timedOut || forcedEnd) && !submitted);
 
   useEffect(() => {
     Promise.all([axios.get("/questions"), axios.get("/quiz-settings")])
       .then(([questionsResponse, settingsResponse]) => {
         setQuestions(questionsResponse.data);
-        setMode(settingsResponse.data.mode);
+        setMode(
+          settingsResponse.data.timerEnabled === false
+            ? "total"
+            : settingsResponse.data.mode
+        );
+        setTimerOn(settingsResponse.data.timerEnabled !== false);
+        if (settingsResponse.data.protection) {
+          setProtection(settingsResponse.data.protection);
+        }
         setTimeLeft(settingsResponse.data.totalSeconds);
         setSolutionsOpen(Boolean(settingsResponse.data.solutionsOpen));
         setTotalSeconds(settingsResponse.data.totalSeconds);
@@ -74,14 +106,14 @@ function App() {
 
   // Total mode: count the whole quiz down
   useEffect(() => {
-    if (!quizStarted || submitted || mode !== "total") return;
+    if (!quizStarted || submitted || mode !== "total" || !timerOn) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizStarted, submitted, mode]);
+  }, [quizStarted, submitted, mode, timerOn]);
 
   // Per-question mode: count the current question down (restarts on each question)
   useEffect(() => {
@@ -105,6 +137,15 @@ function App() {
     setCurrentIndex(0);
     setQuestionTimeLeft(questions[0].timeSeconds || 30);
     setQuizStarted(true);
+
+    // ask for full screen right here, because browsers only allow it after a click
+    if (
+      protection.enabled &&
+      protection.requireFullscreen &&
+      document.documentElement.requestFullscreen
+    ) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
   };
 
   const toggleMark = (questionId) => {
@@ -135,7 +176,12 @@ function App() {
     setSubmitError("");
 
     try {
-      const response = await axios.post("/submit", { name, answers });
+      const response = await axios.post("/submit", {
+        name,
+        answers,
+        violations: violationsRef.current,
+        endedBy: endedByRef.current || undefined,
+      });
       setResult(response.data);
     } catch (error) {
       setSubmitError(
@@ -166,13 +212,17 @@ function App() {
   useEffect(() => {
     if (!quizStarted || submitted) return;
 
-    if (mode === "total" && timeLeft === 0) {
+    if (timerOn && mode === "total" && timeLeft === 0) {
+      endedByRef.current = "time";
       setTimedOut(true);
       actionsRef.current.submitQuiz();
     }
 
     if (mode === "perQuestion" && questionTimeLeft === 0) {
-      if (currentIndex >= questions.length - 1) setTimedOut(true);
+      if (currentIndex >= questions.length - 1) {
+        endedByRef.current = "time";
+        setTimedOut(true);
+      }
       actionsRef.current.goToNext();
     }
   }, [
@@ -183,6 +233,7 @@ function App() {
     questionTimeLeft,
     currentIndex,
     questions.length,
+    timerOn,
   ]);
 
   // Tell students the server is waking up if loading takes more than a few seconds
@@ -248,6 +299,54 @@ function App() {
     return () => observer.disconnect();
   }, [quizStarted, submitted, mode, questions]);
 
+  // ---- Protection: leaving the window, screenshots, printing ----
+  const protectionActive = protection.enabled && quizStarted && !submitted;
+  const warningRef = useRef(null);
+  if (warning) warningRef.current = warning;
+  const warningView = warningRef.current;
+
+  const handleViolation = (type) => {
+    violationsRef.current = [
+      ...violationsRef.current,
+      { type, at: new Date().toISOString() },
+    ];
+    const count = violationsRef.current.length;
+
+    if (count >= protection.maxWarnings) {
+      endedByRef.current = "protection";
+      setForcedEnd(true);
+      setWarning(null);
+      actionsRef.current.submitQuiz();
+    } else {
+      setWarning({ type, count });
+    }
+  };
+
+  const { away } = useProtection({
+    active: protectionActive,
+    requireFullscreen: protection.requireFullscreen,
+    onViolation: handleViolation,
+  });
+
+  const returnToQuiz = () => {
+    if (
+      warning &&
+      warning.type === "fullscreen-exit" &&
+      protection.requireFullscreen &&
+      document.documentElement.requestFullscreen
+    ) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    setWarning(null);
+  };
+
+  // leave full screen when the quiz is over
+  useEffect(() => {
+    if (submitted && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, [submitted]);
+
   // Toasts disappear by themselves
   useEffect(() => {
     if (!toast) return;
@@ -304,6 +403,12 @@ function App() {
             {timedOut && (
               <p className="review-line">
                 Time ran out, so your quiz was submitted automatically.
+              </p>
+            )}
+            {forcedEnd && (
+              <p className="review-line">
+                Your quiz was submitted automatically because you left the quiz
+                window too many times.
               </p>
             )}
           </div>
@@ -389,7 +494,7 @@ function App() {
 
   const activeTime = mode === "perQuestion" ? questionTimeLeft : timeLeft;
   const timeLow =
-    quizStarted && activeTime <= (mode === "perQuestion" ? 10 : 30);
+    timerOn && quizStarted && activeTime <= (mode === "perQuestion" ? 10 : 30);
   const answeredCount = Object.keys(answers).length;
   const unansweredCount = questions.length - answeredCount;
   const markedCount = questions.filter((q) => marked[q.id]).length;
@@ -407,7 +512,7 @@ function App() {
       ? (currentQuestion && currentQuestion.timeSeconds) || 30
       : totalSeconds;
   const timeFraction =
-    quizStarted && timeLimit
+    timerOn && quizStarted && timeLimit
       ? Math.max(0, Math.min(1, activeTime / timeLimit))
       : 1;
 
@@ -418,6 +523,10 @@ function App() {
       ? "Time for this question: "
       : "Each question has its own time limit";
     timerClock = quizStarted ? formatTime(questionTimeLeft) : "";
+  }
+  if (!timerOn) {
+    timerLabel = "No time limit";
+    timerClock = "";
   }
 
   return (
@@ -452,7 +561,7 @@ function App() {
             </AnimatePresence>
           </span>
         </m.div>
-        <div className="time-line" aria-hidden="true">
+        <div className={`time-line ${timerOn ? "" : "off"}`} aria-hidden="true">
           <div
             className={`time-line-fill ${timeLow ? "low" : ""}`}
             style={{ transform: `scaleX(${timeFraction})` }}
@@ -495,11 +604,21 @@ function App() {
         >
           <li>Type your full name exactly as it should appear on your result.</li>
           <li>
-            {mode === "perQuestion"
+            {!timerOn
+              ? "There is no time limit. Take your time, and submit when you are done."
+              : mode === "perQuestion"
               ? "Each question is timed. When time ends, the next question opens and you cannot go back."
               : "The timer starts when you press Start Quiz. Your answers are submitted automatically when time ends."}
           </li>
           <li>Choose one answer for each question. Do not refresh or leave this page.</li>
+          {protection.enabled && (
+            <li>
+              This exam is monitored. Leaving this window, switching tabs or taking
+              screenshots is recorded, and after {protection.maxWarnings} warning
+              {protection.maxWarnings === 1 ? "" : "s"} your quiz is submitted
+              automatically.
+            </li>
+          )}
         </m.ol>
       )}
       </AnimatePresence>
@@ -821,6 +940,51 @@ function App() {
       )}
       </div>
 
+      {protectionActive && protection.watermark && (
+        <div
+          className="watermark"
+          aria-hidden="true"
+          style={{ backgroundImage: watermarkImage(name) }}
+        />
+      )}
+
+      {protectionActive && away && (
+        <div className="shield" role="alert">
+          <p>
+            The quiz is hidden while this window is not in front.
+            <br />
+            Return to this window to continue.
+          </p>
+        </div>
+      )}
+
+      <Modal
+        open={warning !== null && !forcedEnd && !submitted}
+        onClose={() => setWarning(null)}
+        tone="danger"
+        title="Warning"
+      >
+        <p className="modal-body">
+          {warningView && WARNING_TEXT[warningView.type]} This has been recorded.{" "}
+          <strong>
+            Warning {warningView ? warningView.count : 0} of {protection.maxWarnings}.
+          </strong>{" "}
+          After {protection.maxWarnings} your quiz is submitted automatically.
+        </p>
+        <div className="modal-actions">
+          <Button
+            type="button"
+            className="btn-primary"
+            data-autofocus
+            onClick={returnToQuiz}
+          >
+            {warningView && warningView.type === "fullscreen-exit"
+              ? "Return to full screen"
+              : "Return to the quiz"}
+          </Button>
+        </div>
+      </Modal>
+
       <Modal
         open={confirmingStart}
         onClose={() => setConfirmingStart(false)}
@@ -828,10 +992,18 @@ function App() {
       >
         <p className="modal-body">
           {questions.length} question{questions.length === 1 ? "" : "s"}.{" "}
-          {mode === "perQuestion"
+          {!timerOn
+            ? "There is no time limit."
+            : mode === "perQuestion"
             ? "Each question is timed and you cannot go back."
             : `You have ${formatTime(totalSeconds)} in total.`}{" "}
-          The clock starts as soon as you press Start now.
+          {timerOn
+            ? "The clock starts as soon as you press Start now."
+            : "Press Start now when you are ready."}
+          {protection.enabled &&
+            ` This exam is monitored: leaving this window is recorded, and after ${
+              protection.maxWarnings
+            } warning${protection.maxWarnings === 1 ? "" : "s"} your quiz is submitted automatically.`}
         </p>
         <div className="modal-actions">
           <Button
@@ -853,7 +1025,7 @@ function App() {
       </Modal>
 
       <Modal
-        open={confirmingSubmit && !timedOut}
+        open={confirmingSubmit && !timedOut && !forcedEnd}
         onClose={() => setConfirmingSubmit(false)}
         title="Before you submit"
       >
@@ -896,7 +1068,10 @@ function App() {
         </div>
       </Modal>
 
-      <Modal open={timedOut && !submitted} title="Time is up">
+      <Modal
+        open={(timedOut || forcedEnd) && !submitted}
+        title={forcedEnd ? "Quiz ended" : "Time is up"}
+      >
         {submitError ? (
           <>
             <p className="error-text">{submitError}</p>
@@ -915,7 +1090,11 @@ function App() {
           </>
         ) : (
           <>
-            <p className="modal-body">Your answers are being submitted.</p>
+            <p className="modal-body">
+              {forcedEnd
+                ? "You left the quiz window too many times, so your answers are being submitted."
+                : "Your answers are being submitted."}
+            </p>
             <BubbleLoader />
           </>
         )}

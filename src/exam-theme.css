@@ -1407,3 +1407,119 @@ a.btn-ghost {
     box-shadow: none;
   }
 }
+
+/* Paste this at the very bottom of src/exam-theme.css (add it after what is already there) */
+
+/* ---------- Timer off ---------- */
+.time-line.off {
+  display: none;
+}
+
+/* ---------- Protection while a quiz is running ---------- */
+body.protected .quiz-container,
+body.protected .navigator {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+
+.shield {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.shield p {
+  margin: 0;
+}
+
+@media print {
+  body.protected .exam-page,
+  body.protected .watermark {
+    display: none !important;
+  }
+
+  body.protected::before {
+    content: "Printing is turned off during the exam.";
+    display: block;
+    padding: 40px;
+    font-family: sans-serif;
+  }
+}
+
+/* ---------- Teacher: exam controls ---------- */
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.control-title {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+
+.control-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.protection-options {
+  margin: 16px 0 6px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+.check input {
+  margin-top: 4px;
+  accent-color: var(--ink);
+}
+
+.warn-pill {
+  display: inline-block;
+  min-width: 26px;
+  padding: 2px 10px;
+  font-weight: 600;
+  color: var(--red);
+  text-align: center;
+  background: #fdf0f0;
+  border-radius: 999px;
+}
+
+.solution-badge.ended {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+@media (max-width: 600px) {
+  .control-row {
+    grid-template-columns: 1fr;
+  }
+}

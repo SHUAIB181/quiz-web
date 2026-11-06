@@ -46,6 +46,13 @@ const DEFAULT_SETTINGS = {
   totalSeconds: 180,
   defaultQuestionSeconds: 30,
   solutionsOpen: false, // the Solutions page stays hidden until the teacher releases it
+  timerEnabled: true, // false = no time limit at all
+  protection: {
+    enabled: false, // watch for leaving the window, screenshots and printing
+    maxWarnings: 3, // the quiz is submitted automatically after this many warnings
+    requireFullscreen: false,
+    watermark: true,
+  },
 };
 
 const validSeconds = (value, min, max) =>
@@ -54,7 +61,11 @@ const validSeconds = (value, min, max) =>
 const getSettings = async () => {
   const stored = await db.collection("settings").findOne({ _id: "timer" });
   const { _id, ...rest } = stored || {};
-  return { ...DEFAULT_SETTINGS, ...rest };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...rest,
+    protection: { ...DEFAULT_SETTINGS.protection, ...(rest.protection || {}) },
+  };
 };
 
 // Catch errors in async routes so one bad request cannot crash the server
@@ -70,6 +81,19 @@ const sameText = (a, b) => {
   const hashB = crypto.createHash("sha256").update(b).digest();
   return crypto.timingSafeEqual(hashA, hashB);
 };
+
+// What a student's browser reports about leaving the window. It is a record, not proof:
+// the browser reports it, so treat it as a warning sign.
+const VIOLATION_TYPES = ["hidden", "blur", "fullscreen-exit", "printscreen", "print"];
+const END_REASONS = ["time", "protection"];
+
+const cleanViolations = (list) =>
+  Array.isArray(list)
+    ? list
+        .slice(0, 50)
+        .filter((v) => v && VIOLATION_TYPES.includes(v.type))
+        .map((v) => ({ type: v.type, at: typeof v.at === "string" ? v.at.slice(0, 30) : "" }))
+    : [];
 
 // Quote CSV cells, and stop spreadsheet apps from running a name like "=cmd..."
 const csvCell = (value) => {
@@ -158,6 +182,8 @@ app.get(
       mode: settings.mode,
       totalSeconds: settings.totalSeconds,
       solutionsOpen: Boolean(settings.solutionsOpen),
+      timerEnabled: settings.timerEnabled !== false,
+      protection: settings.protection,
     });
   })
 );
@@ -180,7 +206,7 @@ app.get(
 app.post(
   "/submit",
   route(async (req, res) => {
-    const { name, answers } = req.body || {};
+    const { name, answers, violations, endedBy } = req.body || {};
 
     if (typeof name !== "string" || !name.trim() || name.length > 100) {
       return res.status(400).json({ error: "Invalid name" });
@@ -211,11 +237,15 @@ app.post(
     const score = review.filter((item) => item.correct).length;
     const total = questions.length;
 
+    const flags = cleanViolations(violations);
+
     await resultsCol().insertOne({
       name: name.trim(),
       score,
       total,
       submittedAt: new Date().toISOString(), // stamped by the server
+      ...(flags.length > 0 ? { warnings: flags.length, malpractice: flags } : {}),
+      ...(END_REASONS.includes(endedBy) ? { endedBy } : {}),
     });
 
     res.json({ score, total, review });
@@ -238,13 +268,15 @@ app.get(
   route(async (req, res) => {
     const results = await resultsCol().find({}, hidden).sort({ submittedAt: 1 }).toArray();
 
-    let csv = "Name,Score,Submission Date\n";
+    let csv = "Name,Score,Submission Date,Warnings,Ended by\n";
     results.forEach((student) => {
       csv +=
         [
           csvCell(student.name),
           csvCell(student.score),
           csvCell(student.submittedAt || ""),
+          csvCell(student.warnings || 0),
+          csvCell(student.endedBy || ""),
         ].join(",") + "\n";
     });
 
@@ -433,6 +465,52 @@ app.delete(
       return res.status(404).json({ error: "Question not found" });
     }
 
+    res.json({ success: true });
+  })
+);
+
+// ---------- Timer on/off and protection (teacher) ----------
+app.put(
+  "/teacher/exam-controls",
+  requireTeacher,
+  route(async (req, res) => {
+    const { timerEnabled, protection } = req.body || {};
+    const set = {};
+
+    if (timerEnabled !== undefined) {
+      if (typeof timerEnabled !== "boolean") {
+        return res.status(400).json({ error: "timerEnabled must be true or false" });
+      }
+      set.timerEnabled = timerEnabled;
+    }
+
+    if (protection !== undefined) {
+      if (typeof protection !== "object" || protection === null) {
+        return res.status(400).json({ error: "protection must be an object" });
+      }
+
+      for (const key of ["enabled", "requireFullscreen", "watermark"]) {
+        if (protection[key] !== undefined) {
+          if (typeof protection[key] !== "boolean") {
+            return res.status(400).json({ error: `${key} must be true or false` });
+          }
+          set[`protection.${key}`] = protection[key];
+        }
+      }
+
+      if (protection.maxWarnings !== undefined) {
+        if (!validSeconds(protection.maxWarnings, 1, 10)) {
+          return res.status(400).json({ error: "maxWarnings must be 1 to 10" });
+        }
+        set["protection.maxWarnings"] = protection.maxWarnings;
+      }
+    }
+
+    if (Object.keys(set).length === 0) {
+      return res.status(400).json({ error: "Nothing to change" });
+    }
+
+    await db.collection("settings").updateOne({ _id: "timer" }, { $set: set }, { upsert: true });
     res.json({ success: true });
   })
 );

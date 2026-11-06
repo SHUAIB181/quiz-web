@@ -26,6 +26,15 @@ function Dashboard({ onLogout }) {
   const [pending, setPending] = useState(null); // what the popup is asking about
   const [solutionsOpen, setSolutionsOpen] = useState(false);
   const [solutionEdit, setSolutionEdit] = useState(null); // { id, text } while writing a solution
+  const [timerEnabled, setTimerEnabled] = useState(true);
+  const [protection, setProtection] = useState({
+    enabled: false,
+    maxWarnings: 3,
+    requireFullscreen: false,
+    watermark: true,
+  });
+  const [maxWarningsInput, setMaxWarningsInput] = useState("3");
+  const [protectionSaved, setProtectionSaved] = useState(false);
 
   // Timer settings form
   const [mode, setMode] = useState("total");
@@ -60,6 +69,11 @@ function Dashboard({ onLogout }) {
         setQuestions(questionsResponse.data);
         setSettings(saved);
         setSolutionsOpen(Boolean(saved.solutionsOpen));
+        setTimerEnabled(saved.timerEnabled !== false);
+        if (saved.protection) {
+          setProtection(saved.protection);
+          setMaxWarningsInput(String(saved.protection.maxWarnings));
+        }
         setMode(saved.mode);
         setTotalMinutes(String(Math.floor(saved.totalSeconds / 60)));
         setTotalSecs(String(saved.totalSeconds % 60));
@@ -158,6 +172,63 @@ function Dashboard({ onLogout }) {
     } catch (error) {
       handleFailure(error, "Could not save the solution.");
     }
+  };
+
+  // ----- Timer on/off and protection -----
+  const saveControls = async (body, doneText, applyLocally) => {
+    try {
+      await api.put("/teacher/exam-controls", body);
+      applyLocally();
+      setNotice({ type: "success", text: doneText });
+    } catch (error) {
+      handleFailure(error, "Could not save that setting.");
+    }
+  };
+
+  const toggleTimer = () =>
+    saveControls(
+      { timerEnabled: !timerEnabled },
+      timerEnabled
+        ? "Timer turned off. Students have no time limit."
+        : "Timer turned on again.",
+      () => setTimerEnabled(!timerEnabled)
+    );
+
+  const toggleProtection = () =>
+    saveControls(
+      { protection: { enabled: !protection.enabled } },
+      protection.enabled
+        ? "Protection turned off."
+        : "Protection turned on. It applies to quizzes that start from now on.",
+      () => setProtection((current) => ({ ...current, enabled: !current.enabled }))
+    );
+
+  const saveProtection = () => {
+    const maxWarnings = Number(maxWarningsInput);
+
+    if (!Number.isInteger(maxWarnings) || maxWarnings < 1 || maxWarnings > 10) {
+      setNotice({
+        type: "error",
+        text: "Warnings allowed must be a whole number from 1 to 10.",
+      });
+      return Promise.resolve();
+    }
+
+    return saveControls(
+      {
+        protection: {
+          maxWarnings,
+          requireFullscreen: protection.requireFullscreen,
+          watermark: protection.watermark,
+        },
+      },
+      "Protection options saved.",
+      () => {
+        setProtection((current) => ({ ...current, maxWarnings }));
+        setProtectionSaved(true);
+        setTimeout(() => setProtectionSaved(false), 1600);
+      }
+    );
   };
 
   const confirmPending = async () => {
@@ -443,6 +514,105 @@ function Dashboard({ onLogout }) {
         </div>
 
         <div className="t-card">
+          <h2 className="t-section-title">Exam controls</h2>
+          <p className="t-section-sub">
+            Two switches for a quiz. They apply to quizzes that students start after you press them.
+          </p>
+
+          <div className="control-row">
+            <div>
+              <p className="control-title">Timer</p>
+              <p className="control-text">
+                When the timer is off there is no time limit, and students answer at their own pace.
+                Your timer settings are kept for when you turn it back on.
+              </p>
+            </div>
+            <span className={`status-pill ${timerEnabled ? "open" : "closed"}`}>
+              {timerEnabled ? "On" : "Off"}
+            </span>
+            <Button className="t-btn" onClick={toggleTimer}>
+              {timerEnabled ? "Turn timer off" : "Turn timer on"}
+            </Button>
+          </div>
+
+          <div className="control-row">
+            <div>
+              <p className="control-title">Protection against malpractice</p>
+              <p className="control-text">
+                Watches for a student leaving the quiz window or switching tabs, warns them, records
+                each warning next to their result, and submits the quiz automatically after the
+                warnings you allow.
+              </p>
+            </div>
+            <span className={`status-pill ${protection.enabled ? "open" : "closed"}`}>
+              {protection.enabled ? "On" : "Off"}
+            </span>
+            <Button className="t-btn" onClick={toggleProtection}>
+              {protection.enabled ? "Turn protection off" : "Turn protection on"}
+            </Button>
+          </div>
+
+          <div className="protection-options">
+            <div className="t-field">
+              <label htmlFor="max-warnings">Warnings allowed before the quiz is submitted automatically</label>
+              <input
+                id="max-warnings"
+                className="t-input t-input-small"
+                type="number"
+                min="1"
+                max="10"
+                value={maxWarningsInput}
+                onChange={(e) => setMaxWarningsInput(e.target.value)}
+              />
+            </div>
+
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={protection.requireFullscreen}
+                onChange={(e) =>
+                  setProtection((current) => ({ ...current, requireFullscreen: e.target.checked }))
+                }
+              />
+              <span>
+                Require full screen (laptops and desktops). Leaving full screen counts as leaving the
+                window. Phones and iPads usually cannot do this.
+              </span>
+            </label>
+
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={protection.watermark}
+                onChange={(e) =>
+                  setProtection((current) => ({ ...current, watermark: e.target.checked }))
+                }
+              />
+              <span>
+                Show the student's name faintly across the page, so a leaked screenshot can be traced.
+              </span>
+            </label>
+
+            <Button
+              className="t-btn ghost"
+              onClick={saveProtection}
+              status={protectionSaved ? "done" : "idle"}
+            >
+              Save protection options
+            </Button>
+          </div>
+
+          <p className="control-text" style={{ marginTop: 16 }}>
+            <strong>What protection can and cannot do.</strong> It can detect leaving the window, warn
+            and record it, turn off copy, right-click and printing, hide the quiz whenever the window
+            loses focus, and react to the Print Screen key. It <strong>cannot</strong> stop a
+            screenshot, a photo of the screen with another phone, or a second device. The record comes
+            from the student's browser, so treat it as a warning sign and not as proof. For a graded
+            exam, also watch the session on a video call.
+          </p>
+        </div>
+
+        <div className="t-card">
           <h2 className="t-section-title">Solutions page</h2>
           <p className="t-section-sub">
             Students read every question with its answer and written solution on a separate page.
@@ -467,6 +637,11 @@ function Dashboard({ onLogout }) {
 
         <div className="t-card">
           <h2 className="t-section-title">Quiz timer</h2>
+          {!timerEnabled && (
+            <div className="t-notice error">
+              The timer is turned off, so these settings are not used until you turn it back on.
+            </div>
+          )}
           <p className="t-section-sub">
             Choose how the quiz is timed. Changes apply to quizzes that start
             after you save.
@@ -610,12 +785,13 @@ function Dashboard({ onLogout }) {
                   <th>Name</th>
                   <th>Score</th>
                   <th>Date</th>
+                  <th>Warnings</th>
                 </tr>
               </thead>
               <tbody>
                 {!loading && results.length === 0 && (
                   <tr>
-                    <td colSpan="3" className="t-empty">
+                    <td colSpan="4" className="t-empty">
                       No submissions yet. Results appear here after a student
                       finishes the quiz.
                     </td>
@@ -635,6 +811,21 @@ function Dashboard({ onLogout }) {
                       {student.submittedAt
                         ? new Date(student.submittedAt).toLocaleString()
                         : "N/A"}
+                    </td>
+                    <td>
+                      {student.warnings ? (
+                        <span
+                          className="warn-pill"
+                          title={(student.malpractice || []).map((event) => event.type).join(", ")}
+                        >
+                          {student.warnings}
+                        </span>
+                      ) : (
+                        "0"
+                      )}
+                      {student.endedBy === "protection" && (
+                        <span className="solution-badge ended">Auto-ended</span>
+                      )}
                     </td>
                   </tr>
                 ))}
