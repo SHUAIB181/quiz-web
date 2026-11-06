@@ -281,6 +281,7 @@ app.get(
       csv +=
         [
           csvCell(student.name),
+          csvCell(student.rollNumber),
           csvCell(student.score),
           csvCell(student.submittedAt || ""),
           csvCell(student.warnings || 0),
