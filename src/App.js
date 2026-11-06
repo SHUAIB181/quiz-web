@@ -29,6 +29,10 @@ const formatTime = (seconds) =>
 function App() {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
+
+  const [rollNumber, setRollNumber] = useState("");
+const [rollNumberError, setRollNumberError] = useState("");
+
   const [questions, setQuestions] = useState([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -178,6 +182,7 @@ function App() {
     try {
       const response = await axios.post("/submit", {
         name,
+        rollNumber,
         answers,
         violations: violationsRef.current,
         endedBy: endedByRef.current || undefined,
@@ -399,7 +404,11 @@ function App() {
           <div className="result-header">
             <span className="result-badge">Quiz Submitted</span>
             <h1>{message}</h1>
-            <p className="result-name">{name}</p>
+            <p className="result-name">
+  {name}
+  <br />
+  Roll Number: {rollNumber}
+</p>
             {timedOut && (
               <p className="review-line">
                 Time ran out, so your quiz was submitted automatically.
@@ -534,7 +543,7 @@ function App() {
       <header className="exam-bar">
         <div className="exam-brand">
           <span className="exam-seal" aria-hidden="true" />
-          Online examination
+          Let's do This
         </div>
         <SoundToggle />
         <m.div
@@ -653,6 +662,8 @@ function App() {
       <label className="field-label" htmlFor="candidate-name">
         Full name
       </label>
+
+      
       <input
         id="candidate-name"
         className={`name-input ${nameError ? "input-error" : ""}`}
@@ -673,6 +684,30 @@ function App() {
         </p>
       )}
 
+
+<div className="roll-section">
+  <label htmlFor="candidate-roll" className="field-label">
+    Roll number
+  </label>
+
+  <input
+    id="candidate-roll"
+    className={`roll-input ${rollNumberError ? "input-error" : ""}`}
+    type="text"
+    placeholder="Enter your roll number"
+    value={rollNumber}
+    disabled={quizStarted}
+    onChange={(e) => {
+      setRollNumber(e.target.value);
+      if (rollNumberError) setRollNumberError("");
+    }}
+  />
+
+  {rollNumberError && (
+    <p className="error-text">{rollNumberError}</p>
+  )}
+</div>
+
       <Button
         className="btn-primary"
         wake={name.trim() !== "" && questions.length > 0 && !loading}
@@ -684,11 +719,17 @@ function App() {
             setNameError("Please enter your name to start the quiz");
             return;
           }
+
+          if (!rollNumber.trim()) {
+            setRollNumberError("Please enter your roll number");
+            return;
+          }
+
           setNameError("");
           setConfirmingStart(true);
         }}
       >
-        Start Quiz
+        Let's Begin
       </Button>
           </m.div>
         )}

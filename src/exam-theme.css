@@ -1523,3 +1523,39 @@ body.protected .navigator {
     grid-template-columns: 1fr;
   }
 }
+
+
+
+
+.roll-input {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #e18413;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.roll-input:focus {
+  outline: none;
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.roll-input::placeholder {
+  color: #9ca3af;
+}
+
+.roll-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.roll-input.input-error {
+  border-color: #dc2626;
+}

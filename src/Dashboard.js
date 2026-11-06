@@ -783,6 +783,7 @@ function Dashboard({ onLogout }) {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Roll Number</th>
                   <th>Score</th>
                   <th>Date</th>
                   <th>Warnings</th>
@@ -800,6 +801,7 @@ function Dashboard({ onLogout }) {
                 {results.map((student, index) => (
                   <tr key={index}>
                     <td>{student.name}</td>
+                    <td>{student.rollNumber}</td>
                     <td>
                       <span className="t-score">
                         {student.total
