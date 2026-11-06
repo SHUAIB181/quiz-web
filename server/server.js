@@ -206,11 +206,18 @@ app.get(
 app.post(
   "/submit",
   route(async (req, res) => {
-    const { name, answers, violations, endedBy } = req.body || {};
+    const { name, rollNumber, answers, violations, endedBy } = req.body || {};
 
     if (typeof name !== "string" || !name.trim() || name.length > 100) {
       return res.status(400).json({ error: "Invalid name" });
     }
+    if (
+  typeof rollNumber !== "string" ||
+  !rollNumber.trim() ||
+  rollNumber.length > 50
+) {
+  return res.status(400).json({ error: "Invalid roll number" });
+}
     if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
       return res.status(400).json({ error: "Invalid answers" });
     }
@@ -239,14 +246,15 @@ app.post(
 
     const flags = cleanViolations(violations);
 
-    await resultsCol().insertOne({
-      name: name.trim(),
-      score,
-      total,
-      submittedAt: new Date().toISOString(), // stamped by the server
-      ...(flags.length > 0 ? { warnings: flags.length, malpractice: flags } : {}),
-      ...(END_REASONS.includes(endedBy) ? { endedBy } : {}),
-    });
+await resultsCol().insertOne({
+  name: name.trim(),
+  rollNumber: rollNumber.trim(),
+  score,
+  total,
+  submittedAt: new Date().toISOString(),
+  ...(flags.length > 0 ? { warnings: flags.length, malpractice: flags } : {}),
+  ...(END_REASONS.includes(endedBy) ? { endedBy } : {}),
+});
 
     res.json({ score, total, review });
   })
@@ -268,7 +276,7 @@ app.get(
   route(async (req, res) => {
     const results = await resultsCol().find({}, hidden).sort({ submittedAt: 1 }).toArray();
 
-    let csv = "Name,Score,Submission Date,Warnings,Ended by\n";
+    let csv = "Name,Roll Number,Score,Submission Date,Warnings,Ended by\n";
     results.forEach((student) => {
       csv +=
         [
