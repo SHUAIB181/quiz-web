@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import "./App.css";
 import MathText from "./MathText";
 import CountUp from "./CountUp";
@@ -39,6 +40,7 @@ function App() {
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
   const [flashId, setFlashId] = useState(null); // briefly lights up a question after a jump
   const [slowLoad, setSlowLoad] = useState(false); // the free server can take a while to wake
+  const [solutionsOpen, setSolutionsOpen] = useState(false); // has the teacher released the solutions?
   const [confirmingStart, setConfirmingStart] = useState(false);
   const [toast, setToast] = useState(null);
   const [hot, setHot] = useState(null); // the option the highlight is gliding to
@@ -61,6 +63,7 @@ function App() {
         setQuestions(questionsResponse.data);
         setMode(settingsResponse.data.mode);
         setTimeLeft(settingsResponse.data.totalSeconds);
+        setSolutionsOpen(Boolean(settingsResponse.data.solutionsOpen));
         setTotalSeconds(settingsResponse.data.totalSeconds);
       })
       .catch(() =>
@@ -326,6 +329,16 @@ function App() {
               </span>
             </div>
           </div>
+
+          {solutionsOpen ? (
+            <Link className="solutions-link" to="/solutions">
+              Read the detailed solutions
+            </Link>
+          ) : (
+            <p className="solutions-note">
+              Your teacher will release the detailed solutions here when the session ends.
+            </p>
+          )}
 
           <h2 className="review-title">Review Answers</h2>
 

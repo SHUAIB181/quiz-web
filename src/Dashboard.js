@@ -6,6 +6,7 @@ import MathText from "./MathText";
 import CountUp from "./CountUp";
 import Modal from "./Modal";
 import Button from "./Button";
+import RichText from "./Richtext";
 import { AnimatePresence, m } from "motion/react";
 
 const formatSeconds = (total) => {
@@ -23,6 +24,8 @@ function Dashboard({ onLogout }) {
   const [notice, setNotice] = useState(null);
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState(null); // what the popup is asking about
+  const [solutionsOpen, setSolutionsOpen] = useState(false);
+  const [solutionEdit, setSolutionEdit] = useState(null); // { id, text } while writing a solution
 
   // Timer settings form
   const [mode, setMode] = useState("total");
@@ -56,6 +59,7 @@ function Dashboard({ onLogout }) {
         setResults(resultsResponse.data);
         setQuestions(questionsResponse.data);
         setSettings(saved);
+        setSolutionsOpen(Boolean(saved.solutionsOpen));
         setMode(saved.mode);
         setTotalMinutes(String(Math.floor(saved.totalSeconds / 60)));
         setTotalSecs(String(saved.totalSeconds % 60));
@@ -104,6 +108,55 @@ function Dashboard({ onLogout }) {
       setNotice({ type: "success", text: "Question deleted." });
     } catch (error) {
       handleFailure(error, "Could not delete the question.");
+    }
+  };
+
+  const toggleSolutions = async () => {
+    try {
+      await api.put("/teacher/solutions-access", { open: !solutionsOpen });
+      setSolutionsOpen(!solutionsOpen);
+      setNotice({
+        type: "success",
+        text: solutionsOpen
+          ? "Solutions are hidden again."
+          : "Solutions are released. Students can open the Solutions page now.",
+      });
+    } catch (error) {
+      handleFailure(error, "Could not change the solutions setting.");
+    }
+  };
+
+  const copySolutionsLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/solutions`);
+      setNotice({ type: "success", text: "Link copied." });
+    } catch (error) {
+      setNotice({ type: "error", text: "Could not copy. Select the link and copy it by hand." });
+    }
+  };
+
+  const saveSolution = async () => {
+    if (!solutionEdit) return;
+    const text = solutionEdit.text.trim();
+
+    try {
+      await api.patch(`/questions/${solutionEdit.id}`, {
+        explanation: text === "" ? null : text,
+      });
+      setQuestions((current) =>
+        current.map((item) => {
+          if (item.id !== solutionEdit.id) return item;
+          if (text === "") {
+            const { explanation, ...rest } = item;
+            return rest;
+          }
+          return { ...item, explanation: text };
+        })
+      );
+      setSolutionEdit(null);
+      setNotice({ type: "success", text: "Solution saved." });
+    } catch (error) {
+      handleFailure(error, "Could not save the solution.");
     }
   };
 
@@ -232,6 +285,11 @@ function Dashboard({ onLogout }) {
   if (pending) pendingRef.current = pending;
   const view = pendingRef.current;
 
+  // keep the solution popup's words while it fades out
+  const editRef = useRef(null);
+  if (solutionEdit) editRef.current = solutionEdit;
+  const editView = editRef.current;
+
   const scores = results.map((student) => student.score);
   const average =
     scores.length > 0
@@ -284,11 +342,51 @@ function Dashboard({ onLogout }) {
           </div>
         </Modal>
 
+        <Modal
+          open={solutionEdit !== null}
+          onClose={() => setSolutionEdit(null)}
+          title="Written solution"
+        >
+          <p className="modal-body">
+            Explain it step by step. A blank line starts a new paragraph, a line starting with "- "
+            is a bullet, **bold** works, and formulas go between $ signs.
+          </p>
+          <textarea
+            className="t-input solution-input"
+            rows={10}
+            data-autofocus
+            placeholder={"Step 1: ...\n\nStep 2: ..."}
+            value={editView ? editView.text : ""}
+            onChange={(e) =>
+              setSolutionEdit((current) =>
+                current ? { ...current, text: e.target.value } : current
+              )
+            }
+          />
+          {editView && editView.text.trim() && (
+            <div className="solution-preview">
+              <p className="formula-preview-title">How it will read</p>
+              <RichText text={editView.text} />
+            </div>
+          )}
+          <div className="modal-actions">
+            <Button type="button" className="t-btn ghost" onClick={() => setSolutionEdit(null)}>
+              Cancel
+            </Button>
+            <Button type="button" className="t-btn" onClick={saveSolution}>
+              Save solution
+            </Button>
+          </div>
+        </Modal>
+
         <div className="t-header">
           <h1>Teacher dashboard</h1>
           <div className="t-actions">
             <Link className="t-btn" to="/teacher/add-question">
               Add question
+            </Link>
+            <Link className="t-btn ghost" to="/teacher/import">
+              Import questions
             </Link>
             <Button className="t-btn ghost" onClick={exportResults}>
               Export results
@@ -341,6 +439,29 @@ function Dashboard({ onLogout }) {
             <p className="t-stat-value">
               <CountUp to={lowest} />
             </p>
+          </div>
+        </div>
+
+        <div className="t-card">
+          <h2 className="t-section-title">Solutions page</h2>
+          <p className="t-section-sub">
+            Students read every question with its answer and written solution on a separate page.
+            Keep it hidden while they attempt the quiz, then release it. The server holds the
+            solutions back until you do.
+          </p>
+          <div className="solutions-status">
+            <span className={`status-pill ${solutionsOpen ? "open" : "closed"}`}>
+              {solutionsOpen ? "Released" : "Hidden"}
+            </span>
+            <Button className="t-btn" onClick={toggleSolutions}>
+              {solutionsOpen ? "Hide solutions" : "Release solutions"}
+            </Button>
+          </div>
+          <div className="solutions-link-row">
+            <code>{`${window.location.origin}/solutions`}</code>
+            <Button className="t-btn ghost small" onClick={copySolutionsLink}>
+              Copy link
+            </Button>
           </div>
         </div>
 
@@ -584,6 +705,9 @@ function Dashboard({ onLogout }) {
                     <td>{q.category}</td>
                     <td>
                       <MathText text={q.question} />
+                      {q.explanation && (
+                        <span className="solution-badge">Solution added</span>
+                      )}
                     </td>
                     <td>
                       {q.options.map((option, i) => (
@@ -657,6 +781,14 @@ function Dashboard({ onLogout }) {
                               onClick={() => startEdit(q)}
                             >
                               Edit time
+                            </Button>
+                            <Button
+                              className="t-btn ghost small"
+                              onClick={() =>
+                                setSolutionEdit({ id: q.id, text: q.explanation || "" })
+                              }
+                            >
+                              {q.explanation ? "Edit solution" : "Add solution"}
                             </Button>
                             <Button
                               className="t-btn danger small"

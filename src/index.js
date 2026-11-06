@@ -18,6 +18,8 @@ import "./index.css";
 import App from "./App";
 import TeacherLogin from "./TeacherLogin";
 import AddQuestion from "./AddQuestion";
+import Solutions from "./Solutions";
+import ImportQuestions from "./Importquestions";
 import "./exam-theme.css";
 import reportWebVitals from "./reportWebVitals";
 
@@ -65,6 +67,25 @@ function AnimatedRoutes() {
           element={
             <Page>
               <AddQuestion />
+            </Page>
+          }
+        />
+
+        <Route
+          path="/teacher/import"
+          element={
+            <Page>
+              <ImportQuestions />
+            </Page>
+          }
+        />
+
+        {/* Detailed solutions, once the teacher releases them */}
+        <Route
+          path="/solutions"
+          element={
+            <Page>
+              <Solutions />
             </Page>
           }
         />

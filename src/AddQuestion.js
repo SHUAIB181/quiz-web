@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import api from "./teacherApi";
 import "./Teacher.css";
 import MathText from "./MathText";
+import RichText from "./Richtext";
 import Button from "./Button";
 
 // Buttons for the formula toolbar. The cursor lands inside the first { }.
@@ -31,6 +32,7 @@ function AddQuestion() {
   const [options, setOptions] = useState(["", "", "", ""]);
   const [correct, setCorrect] = useState("");
   const [timeSeconds, setTimeSeconds] = useState("");
+  const [solution, setSolution] = useState("");
   const [activeField, setActiveField] = useState("question");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -55,13 +57,16 @@ function AddQuestion() {
   const insertSnippet = (snippet) => {
     const key = activeField;
     const el = fieldRefs.current[key];
-    const current = key === "question" ? question : options[key];
+    const current =
+      key === "question" ? question : key === "solution" ? solution : options[key];
     const start = el ? el.selectionStart : current.length;
     const end = el ? el.selectionEnd : current.length;
     const next = current.slice(0, start) + snippet + current.slice(end);
 
     if (key === "question") {
       setQuestion(next);
+    } else if (key === "solution") {
+      setSolution(next);
     } else {
       setOption(key, next);
     }
@@ -99,6 +104,7 @@ function AddQuestion() {
         options,
         answer: options[Number(correct)],
         ...(timeSeconds ? { timeSeconds: Number(timeSeconds) } : {}),
+        ...(solution.trim() ? { explanation: solution.trim() } : {}),
       });
 
       setMessage({
@@ -110,6 +116,7 @@ function AddQuestion() {
       setOptions(["", "", "", ""]);
       setCorrect("");
       setTimeSeconds("");
+      setSolution("");
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 1600);
@@ -228,6 +235,27 @@ function AddQuestion() {
             </select>
           </div>
 
+          <div className="t-field">
+            <label htmlFor="q-solution">Detailed solution (optional)</label>
+            <textarea
+              id="q-solution"
+              ref={(el) => (fieldRefs.current.solution = el)}
+              onFocus={() => setActiveField("solution")}
+              className="t-input solution-input"
+              rows={8}
+              placeholder={"Step 1: ...\n\nStep 2: ...\n\nShortcut: ..."}
+              value={solution}
+              onChange={(e) => {
+                setSolution(e.target.value);
+                setMessage(null);
+              }}
+            />
+            <p className="t-section-sub" style={{ margin: "6px 0 0" }}>
+              A blank line starts a new paragraph. Start a line with "- " for a bullet, use **bold**,
+              and put formulas between $ signs. The symbol buttons above work here too.
+            </p>
+          </div>
+
           {question.trim() && (
             <div className="formula-preview">
               <p className="formula-preview-title">How students will see it</p>
@@ -245,6 +273,13 @@ function AddQuestion() {
                     </p>
                   )
               )}
+            </div>
+          )}
+
+          {solution.trim() && (
+            <div className="formula-preview">
+              <p className="formula-preview-title">How the solution will read</p>
+              <RichText text={solution} />
             </div>
           )}
 
