@@ -43,7 +43,7 @@ function Solutions() {
       <header className="exam-bar">
         <div className="exam-brand">
           <span className="exam-seal" aria-hidden="true" />
-          Online examination
+          Let's do this
         </div>
         <div className="solutions-actions">
           <Link className="btn-ghost" to="/">
