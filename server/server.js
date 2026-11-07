@@ -189,8 +189,9 @@ app.get(
 );
 
 // Every question with its answer and written solution, but only after the teacher releases it
+// The data lives at /api/solutions. The address /solutions is the page itself.
 app.get(
-  "/solutions",
+  "/api/solutions",
   route(async (req, res) => {
     const settings = await getSettings();
     if (!settings.solutionsOpen) {
@@ -211,13 +212,12 @@ app.post(
     if (typeof name !== "string" || !name.trim() || name.length > 100) {
       return res.status(400).json({ error: "Invalid name" });
     }
-    if (
-  typeof rollNumber !== "string" ||
-  !rollNumber.trim() ||
-  rollNumber.length > 50
-) {
-  return res.status(400).json({ error: "Invalid roll number" });
-}
+
+    const roll = typeof rollNumber === "string" ? rollNumber.trim().toUpperCase() : "";
+    if (!/^[A-Z0-9][A-Z0-9\-\/._ ]{0,29}$/.test(roll)) {
+      return res.status(400).json({ error: "Invalid roll number" });
+    }
+
     if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
       return res.status(400).json({ error: "Invalid answers" });
     }
@@ -246,15 +246,15 @@ app.post(
 
     const flags = cleanViolations(violations);
 
-await resultsCol().insertOne({
-  name: name.trim(),
-  rollNumber: rollNumber.trim(),
-  score,
-  total,
-  submittedAt: new Date().toISOString(),
-  ...(flags.length > 0 ? { warnings: flags.length, malpractice: flags } : {}),
-  ...(END_REASONS.includes(endedBy) ? { endedBy } : {}),
-});
+    await resultsCol().insertOne({
+      name: name.trim(),
+      rollNumber: roll,
+      score,
+      total,
+      submittedAt: new Date().toISOString(), // stamped by the server
+      ...(flags.length > 0 ? { warnings: flags.length, malpractice: flags } : {}),
+      ...(END_REASONS.includes(endedBy) ? { endedBy } : {}),
+    });
 
     res.json({ score, total, review });
   })
@@ -276,12 +276,12 @@ app.get(
   route(async (req, res) => {
     const results = await resultsCol().find({}, hidden).sort({ submittedAt: 1 }).toArray();
 
-    let csv = "Name,Roll Number,Score,Submission Date,Warnings,Ended by\n";
+    let csv = "Roll Number,Name,Score,Submission Date,Warnings,Ended by\n";
     results.forEach((student) => {
       csv +=
         [
+          csvCell(student.rollNumber || ""),
           csvCell(student.name),
-          csvCell(student.rollNumber),
           csvCell(student.score),
           csvCell(student.submittedAt || ""),
           csvCell(student.warnings || 0),

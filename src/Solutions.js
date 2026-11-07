@@ -16,7 +16,7 @@ function Solutions() {
 
   useEffect(() => {
     axios
-      .get("/solutions")
+      .get("/api/solutions")
       .then((response) => {
         setQuestions(response.data);
         setState("ready");
